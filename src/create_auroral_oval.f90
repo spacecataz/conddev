@@ -1,4 +1,3 @@
-!=============================================================================
 subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
      ColatOut, WidthOut, StrenOut)
 
@@ -15,14 +14,16 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
   use ModIonosphere, ONLY: IONO_nTheta, IONO_nPsi
   use IE_ModIo,      ONLY: NameIonoDir
   use ModIeRlm,      ONLY: DoOvalShift, DoFitCircle
-  use ModIoUnit,     ONLY: UnitTMP_
   use IE_ModMain,    ONLY: Time_Array, nSolve
-  
+  use ModIoUnit,     ONLY: UnitTmp_
+  use ModUtilities,  ONLY: open_file, close_file, CON_set_do_test
+
   implicit none
 
-  ! Input/Output variables:  
-  real, intent(in),  dimension(IONO_nTheta,IONO_nPsi):: CurrentIn,thetaIn,psiIn
-  real, intent(out), dimension(IONO_nPsi) :: ColatOut, widthOut, strenOut
+  ! Input/Output variables:
+  real, intent(in),  dimension(IONO_nTheta,IONO_nPsi):: &
+       CurrentIn, ThetaIn, PsiIn
+  real, intent(out), dimension(IONO_nPsi) :: ColatOut, WidthOut, StrenOut
 
   ! Working variables:
   logical :: IsNorth
@@ -41,16 +42,15 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
   real:: GradMean, GradDev, GradMeanPrev, GradDevPrev
 
   ! Testing variables:
-  logical       :: DoTest, DoTestMe
-  logical, save :: IsFirstWrite = .true.
-  character(len=100), save    :: NameFile, StringFormat
-  character(len=*), parameter :: NameSub = 'create_auroral_oval'
-  !--------------------------------------------------------------------------
+  logical:: DoTest, DoTestMe
+  character(len=100):: NameFile, StringFormat
+  character(len=*), parameter:: NameSub = 'create_auroral_oval'
+  !----------------------------------------------------------------------------
   call CON_set_do_test(NameSub, DoTest, DoTestMe)
 
   ! Initialize arrays to zero:
   FacMax=-1e99;  ColatMax=0; Width=0
-  
+
   ! Reverse arrays if in Southern hemisphere.
   if (ThetaIn(1,1) < cHalfPi) then
      Current = CurrentIn
@@ -70,7 +70,7 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
 
   ! Calculate some useful variables:
   dLat = theta(2,1) - theta(1,1)
-  
+
   ! Find the max upward FAC and the corresponding colatitude:
   do j=1, IONO_nPsi        ! Loop through longitude
      do i=4, IONO_nTheta   ! Loop through colat, start away from pole
@@ -85,11 +85,11 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
      do i = iStart, IONO_nTheta
         if(current(i,j) <= FacMax(j)/4.0) then
            Width(j) = theta(i,j) - ColatMax(j)
-           exit
+           EXIT
         endif
      end do
 
-     ! Limit width of oval: 
+     ! Limit width of oval:
      if (Width(j) < dLat) Width(j) = ColatMax(j)/5.0
   end do
 
@@ -108,7 +108,6 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
      write(*,*) "WidthDay  = ", WidthDay  * cRadToDeg
   end if
 
-
   ! Calculate a day-night shift in oval location.
   ! Set floor for oval size.
   if (ColatMean < 15.*cDegToRad) then
@@ -117,7 +116,7 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
      ColatDev  = 0.0
      ColatOut = ColatMean
   elseif (.not.DoOvalShift) then
-     ! No shift if DoOvalShift is false. 
+     ! No shift if DoOvalShift is false.
      ColatDev = 0.0
      ColatOut = ColatMean
   elseif(DoFitCircle)then
@@ -164,13 +163,14 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
         ! Step in the direction of -gradient
         ColatMean = ColatMean - dStep*GradMean
         ColatDev  = ColatDev  - dStep*GradDev
-     
+
         ! Store previous gradients
         GradMeanPrev = GradMean
         GradDevPrev  = GradDev
 
         if(DoTestMe) &
-             write(*,*) NameSub,' nIter, ColatMeanPrev, ColatDevPrev, ColatMean, ColatDev=', &
+             write(*,*) NameSub, &
+             ' nIter, ColatMeanPrev, ColatDevPrev, ColatMean, ColatDev=', &
              nIter, ColatMeanPrev, ColatDevPrev, ColatMean, ColatDev
 
         if(Tolerance2 > dStep**2 * (GradMean**2 + GradDev**2)) EXIT
@@ -235,25 +235,26 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
      ColatOut = ColatMean - ColatDev*cos(Psi(1,:))  ! SIGN IS WRONG.
 
   end if
-  
+
   ! Use above values to craft auroral oval:
   WidthOut = WidthDay  + (WidthMean-WidthDay)*sin(Psi(1,:)/2.0)
   StrenOut = FacDawn   +     (FacSum-FacDawn)*sin(Psi(1,:)/2.0)
 
   ! For testing purposes, write oval info to file.
-  if(.not.DoTestMe .or. .not. IsNorth) return
+  if(.not.DoTestMe .or. .not. IsNorth) RETURN
 
   write(NameFile,'(a,i8.8,a)')trim(NameIonoDir)//'aurora_n',nSolve,'.dat'
-  open(unit=UnitTmp_, file=NameFile, status='replace')
+  call open_file(FILE=NameFile, STATUS='replace', NameCaller=NameSub)
   write(UnitTmp_, '(a,2f8.2)')'Auroral oval fit: ColatMean, ColatDev=', &
        ColatMean*cRadToDeg, ColatDev*cRadToDeg
   write(UnitTmp_,'(a)') 'j Phi ThetaMax ThetaFit Weight Width'
   do j=1, IONO_nPsi
-     write(UnitTmp_,'(i4, 5es13.4)') j, Psi(1,j)*cRadToDeg, ColatMax(j)*cRadToDeg, &
+     write(UnitTmp_,'(i4, 5es13.4)') &
+          j, Psi(1,j)*cRadToDeg, ColatMax(j)*cRadToDeg, &
           ColatOut(j)*cRadToDeg, facMax(j)/FacSum, Width(j)*cRadToDeg
   end do
-  close(UnitTmp_)
-  
+  call close_file(NameCaller=NameSub)
+
 !!!  if(IsFirstWrite)then
 !!!     ! Open file:
 !!!     write(NameFile,'(a,i8.8,a)')trim(NameIonoDir)//'aurora_n',nSolve,'.txt'
@@ -277,6 +278,6 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
 !!!  ! Write record & close file:
 !!!  write(UnitTmp_, StringFormat) Time_Array(1:7), ColatOut*cRadToDeg
 !!!  close(UnitTmp_)
-  
+
 end subroutine create_auroral_oval
-!=============================================================================
+!==============================================================================
