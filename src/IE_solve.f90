@@ -1,4 +1,5 @@
-!  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+!  Copyright (C) 2002 Regents of the University of Michigan,
+!  portions used with permission
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 subroutine IE_solve
 
@@ -9,13 +10,14 @@ subroutine IE_solve
   use ModNumConst
   use ModMpi
   use ModConductance, ONLY: generate_conductance
-  
+
   implicit none
-  character(len=*), parameter :: NameSub = 'IE_solve'
+
   real    :: CurrentSum
   integer :: iBlock
   integer :: nSize, iError
 
+  character(len=*), parameter:: NameSub = 'IE_solve'
   logical DoTest, DoTestMe
   !--------------------------------------------------------------------------
   call CON_set_do_test(NameSub, DoTest, DoTestMe)
@@ -54,7 +56,7 @@ subroutine IE_solve
 
         ! Next two calls replaced with:
         call generate_conductance('north')
-        
+
         !call FACs_to_fluxes(conductance_model, iBlock)
         !
         !call ionosphere_conductance(IONO_NORTH_Sigma0,               &
@@ -91,9 +93,9 @@ subroutine IE_solve
              IONO_NORTH_Theta, IONO_NORTH_Psi, &
              dTheta_North, dPsi_North, &
              IONO_NORTH_PHI)
-        
+
         if(DoTest)then
-           call write_prefix; 
+           call write_prefix;
            write(*,'(a,f8.3,a)') "Northern Cross Polar Cap Potential=", &
                 cpcp_north," kV"
         end if
@@ -112,7 +114,7 @@ subroutine IE_solve
              IONO_NORTH_Theta, IONO_NORTH_Psi, &
              dTheta_North, dPsi_North)
 
-        !add joule heating for north (JouleHeating = sigmaP * E^2)
+        ! add joule heating for north (JouleHeating = sigmaP * E^2)
         ! Yiqun
         call ionosphere_jouleheating_ionflux(iBlock, &
              IONO_NORTH_ETh, IONO_NORTH_EPs, &
@@ -142,7 +144,7 @@ subroutine IE_solve
 
         ! Obtain conductance:
         call generate_conductance('south')
-        
+
         !call FACs_to_fluxes(conductance_model, iBlock)
         !
         !call ionosphere_conductance(IONO_SOUTH_Sigma0,               &
@@ -184,7 +186,7 @@ subroutine IE_solve
 
 
         if(DoTest)then
-           call write_prefix; 
+           call write_prefix;
            write(*,'(a,8.3,a)') "Southern Cross Polar Cap Potential=",&
                 cpcp_south," kV"
         end if
@@ -203,7 +205,7 @@ subroutine IE_solve
              IONO_SOUTH_Theta, IONO_SOUTH_Psi, &
              dTheta_South, dPsi_South)
 
-        !add joule heating for north (JouleHeating = sigmaP * E^2)
+        ! add joule heating for north (JouleHeating = sigmaP * E^2)
         ! Yiqun
         call ionosphere_jouleheating_ionflux(iBlock, &
              IONO_SOUTH_ETh, IONO_SOUTH_EPs, &
@@ -226,3 +228,4 @@ subroutine IE_solve
   end if
 
 end subroutine IE_solve
+!==============================================================================
