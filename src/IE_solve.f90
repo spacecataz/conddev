@@ -17,8 +17,8 @@ subroutine IE_solve
   integer :: iBlock
   integer :: nSize, iError
 
-  character(len=*), parameter:: NameSub = 'IE_solve'
   logical DoTest, DoTestMe
+  character(len=*), parameter:: NameSub = 'IE_solve'
   !--------------------------------------------------------------------------
   call CON_set_do_test(NameSub, DoTest, DoTestMe)
 
@@ -183,7 +183,6 @@ subroutine IE_solve
              IONO_SOUTH_Theta, IONO_SOUTH_Psi, &
              dTheta_South, dPsi_South, &
              IONO_SOUTH_PHI)
-
 
         if(DoTest)then
            call write_prefix;
