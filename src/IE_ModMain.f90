@@ -46,7 +46,7 @@ module IE_ModMain
   ! Parameter for coupling the UA current and
   ! latitude boundary for currents from GM and for calculating Phi
   logical :: DoCoupleUaCurrent = .false.
-  real    :: LatBoundaryGm, LatBoundary = 90.0 * cDegToRad
+  real    :: LatBoundary = 10.0 * cDegToRad
 
   ! Dipole parameters obtained from CON_physics
   real :: ThetaTilt, SinThetaTilt, CosThetaTilt
