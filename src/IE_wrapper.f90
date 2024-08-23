@@ -1,9 +1,13 @@
-!  Copyright (C) 2002 Regents of the University of Michigan, 
-!  portions used with permission 
+!  Copyright (C) 2002 Regents of the University of Michigan,
+!  portions used with permission
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 
 module IE_wrapper
-  ! Wrapper for Ridley's ionosphere
+
+  ! Wrapper for Ridley's ionosphere model RIM
+
+  use ModUtilities, ONLY: CON_set_do_test, CON_stop, open_file, close_file
+  use ModIoUnit, ONLY: UNITTMP_
 
   implicit none
 
@@ -35,8 +39,12 @@ module IE_wrapper
   public:: IE_get_for_rb
 
   ! Coupling with UA
+  public:: IE_get_info_for_ua
   public:: IE_get_for_ua
   public:: IE_put_from_ua
+
+  ! Lookup table for F10.7 flux
+  integer:: iTableF107 = -100
 
 contains
   !============================================================================
@@ -46,17 +54,17 @@ contains
     use ModIonosphere
     use IE_ModIo
     use IE_ModMain
-    use ModIonoMagPerturb
+!    use ModIonoMagPerturb
 
     use ModIoUnit
     use CON_comp_info
 
     ! Arguments
     type(CompInfoType), intent(inout) :: CompInfo   ! Information for this comp
-    character (len=*), intent(in)     :: TypeAction ! What to do
- 
-    character (len=*), parameter :: NameSub='IE_set_param'
-    !-------------------------------------------------------------------------
+    character(len=*), intent(in)      :: TypeAction ! What to do
+
+    character(len=*), parameter :: NameSub = 'IE_set_param'
+    !--------------------------------------------------------------------------
     select case(TypeAction)
     case('VERSION')
        call put(CompInfo,&
@@ -88,6 +96,7 @@ contains
     end select
 
   contains
+    !==========================================================================
 
     subroutine read_param
 
@@ -112,7 +121,7 @@ contains
       logical :: UseFullCurrent ! LEGACY, NOT USED, CANDIDATE FOR REMOVAL.
       integer :: iModLegacy=5
       real :: f10Legacy, StarLightLegacy, PolarCapLegacy
-      
+
       ! Plot file parameters
       integer :: iFile, iDebugProc
       character (len=50) :: plot_string
@@ -120,6 +129,7 @@ contains
       !------------------------------------------------------------------------
       select case(TypeAction)
       case('CHECK')
+         if(IsUninitialized)call set_defaults
          IsUninitialized=.false.
 
          ! We should check and correct parameters here
@@ -130,6 +140,7 @@ contains
          if(iProc==0)write(*,*) NameSub,': READ iSession =',i_session_read(),&
               ' iLine=',i_line_read(),' nLine =',n_line_read()
 
+         if(IsUninitialized)call set_defaults
          IsUninitialized=.false.
       end select
 
@@ -166,7 +177,7 @@ contains
                ! Plot file format
                if(index(plot_string,'idl')>0)then
                   plot_form(iFile)='idl'
-               elseif(index(plot_string,'tec')>0)then 
+               elseif(index(plot_string,'tec')>0)then
                   plot_form(iFile)='tec'
                else
                   call CON_stop(NameSub//&
@@ -229,7 +240,7 @@ contains
             call read_var('TypeImCouple',TypeImCouple)
             call lower_case(TypeImCouple)
             call read_var('FractionImJr',FractionImJr)
-         case("#BOUNDARY") 
+         case("#BOUNDARY")
             call read_var('LatBoundary',LatBoundary)
             LatBoundary = LatBoundary * cDegToRad
          case("#UA")
@@ -310,7 +321,7 @@ contains
             if(DoSaveLogfile)then
                if(iProc==0)call check_dir(NameIonoDir)
             endif
-            
+
          case("#AURORALOVAL")
             call read_var('UseOval', UseOval)
             if(UseOval)then
@@ -319,7 +330,7 @@ contains
                call read_var('UseAdvancedOval',       UseNewOval)
                if(UseNewOval) call read_var('DoFitCircle', DoFitCircle)
             end if
-            
+
          case("#CONDUCTANCE")
             call read_var('OvalWidthFactor',   OvalWidthFactor)
             call read_var('OvalStrengthFactor',OvalStrengthFactor)
@@ -367,7 +378,6 @@ contains
     use CON_coupler
     use ModNumConst
 
-    character (len=*), parameter :: NameSub='IE_set_grid'
     logical :: IsInitialized=.false.
     integer :: iProc_A(2)
 
@@ -375,7 +385,8 @@ contains
     real :: Longitude_I(IONO_nPsi) = 0.
 
     logical :: DoTest, DoTestMe
-    !------------------------------------------------------
+    character(len=*), parameter :: NameSub = 'IE_set_grid'
+    !--------------------------------------------------------------------------
     call CON_set_do_test(NameSub,DoTest, DoTestMe)
     if(DoTest)write(*,*)NameSub,' IsInitialized=',IsInitialized
 
@@ -397,19 +408,18 @@ contains
     call set_grid_descriptor(                        &
          IE_,                                        &! component index
          nDim=2,                                     &! dimensionality
-         nRootBlock_D=(/2,1/),                       &! north+south hemispheres
-         nCell_D =(/IONO_nTheta - 1,IONO_nPsi - 1/), &! size of node based grid
-         XyzMin_D=(/cOne, cOne/),                    &! minimum indexes
-         XyzMax_D=(/real(2*IONO_nTheta-1.0),         &! maximum indexes
-         real(IONO_nPsi)/),                          &
+         nRootBlock_D=[2,1],                         &! north+south hemispheres
+         nCell_D =[IONO_nTheta - 1,IONO_nPsi - 1],   &! size of node based grid
+         XyzMin_D=[1.0, 1.0],                        &! minimum indexes
+         XyzMax_D=[real(2*IONO_nTheta-1.0),          &! maximum indexes
+         real(IONO_nPsi)],                           &
          TypeCoord='SMG',                            &! solar magnetic coord.
          Coord1_I=Colat_I,                           &! colatitudes
          Coord2_I=Longitude_I,                       &! longitudes
-         Coord3_I=(/IONO_Radius + IONO_Height/),     &! radial size in meters
+         Coord3_I=[IONO_Radius + IONO_Height],       &! radial size in meters
          iProc_A = iProc_A)                           ! processor assigment
 
   end subroutine IE_set_grid
-
   !============================================================================
 
   subroutine IE_get_for_gm(Buffer_IIV, iSize, jSize, nVar, NameVar_I, &
@@ -427,7 +437,7 @@ contains
 
     real:: tSimulationTmp
     integer:: iVar
-    
+
     character(len=*), parameter:: NameSub = 'IE_get_for_gm'
     !--------------------------------------------------------------------------
     if(iSize /= IONO_nTheta*2-1 .or. jSize /= IONO_nPsi)then
@@ -464,8 +474,6 @@ contains
     use ModProcIE
     use ModIonosphere
 
-    character (len=*),parameter :: NameSub='IE_get_for_pw'
-
     integer, intent(in)           :: iSize, jSize, nVar
     real, intent(out)             :: Buffer_IIV(iSize,jSize,nVar)
     character (len=*),intent(in)  :: NameHem
@@ -474,6 +482,7 @@ contains
 
     integer :: iVar
     real    :: tSimulationTmp
+    character(len=*), parameter :: NameSub='IE_get_for_pw'
     !--------------------------------------------------------------------------
     if(iSize /= 2*IONO_nTheta-1 .or. jSize /= IONO_nPsi)then
        write(*,*)NameSub//' incorrect buffer size=',iSize,jSize,&
@@ -496,7 +505,7 @@ contains
        case('Ave')
           Buffer_IIV(:,:,iVar) = IONO_Ave_E
        case('Tot')
-          Buffer_IIV(:,:,iVar) = IONO_EFlux*1.0e3 !J/m^2 --> ergs/cm^2
+          Buffer_IIV(:,:,iVar) = IONO_EFlux*1.0e3 ! J/m^2 --> ergs/cm^2
        case default
           call CON_stop(NameSub//' invalid NameVar='//Name_V(iVar))
        end select
@@ -511,8 +520,6 @@ contains
     use ModProcIE
     use ModIonosphere
 
-    character (len=*),parameter :: NameSub='IE_get_for_rb'
-
     integer, intent(in)           :: iSize, jSize, nVar
     real, intent(out)             :: Buffer_IIV(iSize,jSize,nVar)
     character (len=*),intent(in)  :: NameHem
@@ -521,6 +528,7 @@ contains
 
     integer :: iVar
     real    :: tSimulationTmp
+    character(len=*), parameter :: NameSub='IE_get_for_rb'
     !--------------------------------------------------------------------------
     if(iSize /= IONO_nTheta .or. jSize /= IONO_nPsi)then
        write(*,*)NameSub//' incorrect buffer size=',iSize,jSize,&
@@ -566,26 +574,79 @@ contains
 
   end subroutine IE_get_for_rb
   !============================================================================
+  subroutine IE_get_info_for_ua(nVar, NameVar_V)
+    ! Get number and names of variables for UA to IE coupling.
+    ! IE reports what variables it needs from UA.
+    ! UA will use this info to create and fill buffers appropriately.
 
-  subroutine IE_get_for_ua(Buffer_II,iSize,jSize,NameVar,NameHem,tSimulation)
+    integer, intent(out) :: nVar
+    character(len=*), intent(out), optional :: NameVar_V(:)
+
+    logical :: DoTest, DoTestMe
+    character(len=*), parameter:: NameSub = 'IE_get_info_for_ua'
+    !--------------------------------------------------------------------------
+    call CON_set_do_test(NameSub, DoTest, DoTestMe)
+
+    ! Right now, only request Hall & Pedersen conductance.
+    ! In the future, neutral wind FAC coupling or other values can/will
+    ! be shared from UA.
+    nVar = 4
+    if(present(NameVar_V)) NameVar_V(1:4) = ['lon','lat','hal','ped']
+
+    if(DoTestMe)then
+       write(*,*) NameSub//': nVar=', nVar
+       if(present(NameVar_V)) write(*,*) NameSub//': NameVar_V=',NameVar_V
+    end if
+
+  end subroutine IE_get_info_for_ua
+  !============================================================================
+
+  subroutine IE_get_for_ua(Buffer_IIV, iSize, jSize, nVarIn, NameVar_V, &
+       iBlock,tSimulation)
 
     use ModProcIE
     use ModIonosphere
 
-    character (len=*),parameter :: NameSub='IE_get_for_ua'
-
-    integer,          intent(in)  :: iSize,jSize
-    real,             intent(out) :: Buffer_II(iSize,jSize)
-    character (len=*),intent(in)  :: NameVar
-    character (len=*),intent(in)  :: NameHem
+    integer,          intent(in)  :: iSize, jSize, nVarIn, iBlock
+    real,             intent(out) :: Buffer_IIV(iSize,jSize,nVarIn)
+    character (len=*),intent(in)  :: NameVar_V(nVarIn)
     real,             intent(in)  :: tSimulation
 
+    character(len=5) :: NameHem
+    integer :: iVar
     real    :: tSimulationTmp
+
+    ! Debug variables:
+    logical :: DoTest, DoTestMe
+    character(len=*), parameter:: NameSub = 'IE_get_for_ua'
     !--------------------------------------------------------------------------
+    call CON_set_do_test(NameSub, DoTest, DoTestMe)
+
+    if(DoTestMe)then
+       write(*,*)NameSub//': Gathering data for UA at t=', tSimulation
+       write(*,*)NameSub//': Current hemisphere block = ', iBlock
+       write(*,*)NameSub//': Variable list = '
+       do iVar=1, nVarIn
+          write(*,'(10x,i2.2,5x,a)')iVar, NameVar_V(iVar)
+       end do
+       write(*,*)NameSub//': Expected IE grid dimensions (iSize,jSize) =', &
+            iSize, jSize
+    end if
+
     if(iSize /= IONO_nTheta .or. jSize /= IONO_nPsi)then
        write(*,*)NameSub//' incorrect buffer size=',iSize,jSize,&
             ' IONO_nTheta,IONO_nPsi=',IONO_nTheta, IONO_nPsi
        call CON_stop(NameSub//' SWMF_ERROR')
+    end if
+
+    ! Set hemisphere to transfer:
+    if(iBlock==1) then
+       NameHem = 'North'
+    else if (iBlock==2) then
+       NameHem = 'South'
+    else
+       write(*,*) NameSub//': invalid iBlock = ', iBlock
+       call CON_stop(NameSub//': Error coupling with UA')
     end if
 
     ! Make sure that the most recent result is provided
@@ -598,48 +659,45 @@ contains
 
        if(iProc /= 0) RETURN
 
-       select case(NameVar)
+       do iVar=1, nVarIn
+          select case(NameVar_V(iVar))
 
-       case('Pot')
-          Buffer_II = IONO_NORTH_Phi
-       case('Ave')
-          Buffer_II = IONO_NORTH_Ave_E
-       case('Tot')
-          Buffer_II = IONO_NORTH_EFlux
-       case default
-          call CON_stop(NameSub//' invalid NameVar='//NameVar)
-
-       end select
+          case('pot')
+             Buffer_IIV(:,:,iVar) = IONO_NORTH_Phi
+          case('ave')
+             Buffer_IIV(:,:,iVar) = IONO_NORTH_Ave_E
+          case('tot')
+             Buffer_IIV(:,:,iVar) = IONO_NORTH_EFlux
+          case default
+             call CON_stop(NameSub//' invalid NameVar='//NameVar_V(iVar))
+          end select
+       end do
 
     case('South')
 
        if(iProc /= nProc - 1) RETURN
 
-       select case(NameVar)
+       do iVar=1, nVarIn
+          select case(NameVar_V(iVar))
 
-       case('Pot')
-          Buffer_II = IONO_SOUTH_Phi
-       case('Ave')
-          Buffer_II = IONO_SOUTH_Ave_E
-       case('Tot')
-          Buffer_II = IONO_SOUTH_EFlux
-       case default
-          call CON_stop(NameSub//' invalid NameVar='//NameVar)
-
-       end select
-
-    case default
-
-       call CON_stop(NameSub//' invalid NameHem='//NameHem)
-
+          case('pot')
+             Buffer_IIV(:,:,iVar) = IONO_SOUTH_Phi
+          case('ave')
+             Buffer_IIV(:,:,iVar) = IONO_SOUTH_Ave_E
+          case('tot')
+             Buffer_IIV(:,:,iVar) = IONO_SOUTH_EFlux
+          case default
+             call CON_stop(NameSub//' invalid NameVar='//NameVar_V(iVar))
+          end select
+       end do
     end select
 
   end subroutine IE_get_for_ua
-
   !============================================================================
+
   subroutine IE_put_from_gm(Buffer_IIV, iSize, jSize, nVar)
 
-    use IE_ModMain, ONLY: IsNewInput, LatBoundaryGm
+    use IE_ModMain, ONLY: IsNewInput
     use ModProcIE
     use ModIonosphere
     use ModConductance, ONLY: GmRhoFloor, GmPFloor
@@ -649,7 +707,7 @@ contains
     real                         :: Buffer_IIV(iSize, jSize, nVar)
 
     logical :: DoTest, DoTestMe
-    character (len=*), parameter :: NameSub = 'IE_put_from_gm'
+    character(len=*), parameter :: NameSub = 'IE_put_from_gm'
     !--------------------------------------------------------------------------
     call CON_set_do_test(NameSub, DoTest, DoTestMe)
     if(DoTest)write(*,*)NameSub,' starting with iSize, jSize, nVar=', &
@@ -657,17 +715,14 @@ contains
 
     IsNewInput = .true.
 
-    
     ! Here, we change the coupler values to be palatable to the
     ! SPECIFIC code: coord transform, unit conversion, floors, ceilings.
 
     ! Set minimum acceptable values for density & pressure:
     where (Buffer_IIV(:,:,3) < GmRhoFloor) Buffer_IIV(:,:,3)=GmRhoFloor
     where (Buffer_IIV(:,:,4) < GmPFloor  ) Buffer_IIV(:,:,4)=GmPFloor
-    
+
     if (iProc == 0) then
-       LatBoundaryGm = Buffer_IIV(IONO_nTheta,1,1)
-       if(DoTest)write(*,*) "LatBoundary : ",LatBoundaryGm*180.0/3.1415926
        Iono_North_Jr = Buffer_IIV(1:IONO_nTheta,:,1)
        Iono_North_Jr(IONO_nTheta-1:IONO_nTheta,1) = 0.0
        if(nVar>1)then
@@ -680,8 +735,6 @@ contains
        end if
     endif
     if (iProc == nProc-1) then
-       LatBoundaryGm = Buffer_IIV(IONO_nTheta,1,1)
-       if(DoTest)write(*,*) "LatBoundary2 : ",LatBoundaryGm*180.0/3.1415926
        Iono_South_Jr = Buffer_IIV(IONO_nTheta:2*IONO_nTheta-1,:,1)
        Iono_South_Jr(1:2,1) = 0.0
        if(nVar>1)then
@@ -693,35 +746,36 @@ contains
           if(DoTest) call write_dataS
        end if
     endif
-    
+
     ! Debug statements:
     if(DoTest)then
-       !write statements here.
+       ! write statements here.
        do j = 1, IONO_nPsi
           do i = 1, IONO_nTheta
              write(*,'(2(i4.4,1x), 2(E10.5, 1x))') i, j, &
                   Iono_North_p(i,j), Iono_North_rho(i,j)
           end do
        end do
-       
+
     endif
-    
+
     if(DoTest)write(*,*)NameSub,' finished'
 
   contains
+    !==========================================================================
 
-    !=========================================================================
-    !write values to North plot file
     subroutine write_dataN
-      use ModIoUnit, ONLY: UNITTMP_
-      CHARACTER (LEN=80) :: filename
-      integer :: i,j
-      integer, save :: nCall=0
-      !------------------------------------------------------------------------
 
+      ! write values to North plot file
+
+      character(len=80) :: filename
+      integer:: i, j
+      integer:: nCall=0
+      character(len=*), parameter:: NameSub = 'write_dataN'
+      !------------------------------------------------------------------------
       nCall=nCall+1
       write(filename,'(a,i5.5,a)')"gm2ie_debugN_",nCall,".dat"
-      OPEN (UNIT=UNITTMP_, FILE=filename, STATUS='unknown')
+      call open_file(FILE=filename, STATUS='unknown')
       write(UNITTMP_,'(a)') 'TITLE="gm2ie debugN values"'
       write(UNITTMP_,'(a)') &
            'VARIABLES="J", "I", "Theta", "Psi", "JR", "1/B", "rho", "p"'
@@ -733,19 +787,22 @@ contains
               Iono_North_Theta(i,j),Iono_North_Psi(i,j),Iono_North_Jr(i,j), &
               Iono_North_invB(i,j),Iono_North_rho(i,j),Iono_North_p(i,j)
       end do; end do
-      CLOSE(UNITTMP_)
+      call close_file(NameCaller=NameSub)
+
     end subroutine write_dataN
     !==========================================================================
-    !write values to South plot file
     subroutine write_dataS
-      use ModIoUnit, ONLY: UNITTMP_
-      CHARACTER (LEN=80) :: filename
-      integer :: i,j
-      integer, save :: nCall=0
+
+      ! write values to South plot file
+
+      character(len=80) :: filename
+      integer:: i,j
+      integer:: nCall=0
+      character(len=*), parameter:: NameSub = 'write_dataS'
       !------------------------------------------------------------------------
       nCall=nCall+1
       write(filename,'(a,i5.5,a)')"gm2ie_debugS_",nCall,".dat"
-      OPEN (UNIT=UNITTMP_, FILE=filename, STATUS='unknown')
+      call open_file(FILE=filename, STATUS='unknown')
       write(UNITTMP_,'(a)') 'TITLE="gm2ie debugS values"'
       write(UNITTMP_,'(a)') &
            'VARIABLES="J", "I", "Theta", "Psi", "JR", "1/B", "rho", "p"'
@@ -757,14 +814,14 @@ contains
               Iono_South_Theta(i,j),Iono_South_Psi(i,j),Iono_South_Jr(i,j), &
               Iono_South_invB(i,j),Iono_South_rho(i,j),Iono_South_p(i,j)
       end do; end do
-      CLOSE(UNITTMP_)
+      call close_file(NameCaller=NameSub)
+
     end subroutine write_dataS
+    !==========================================================================
 
   end subroutine IE_put_from_gm
-
   !============================================================================
-
-  subroutine IE_put_from_ua(Buffer_III, iBlock, nMLTs, nLats, nVarsToPass)
+  subroutine IE_put_from_ua(Buffer_IIBV, nMLTs, nLats, nVarIn, NameVarUaIn_V)
 
     use IE_ModMain, ONLY: &
          IsNewInput, DoCoupleUaCurrent
@@ -776,25 +833,28 @@ contains
 
     save
 
-    integer, intent(in) :: nMlts, nLats, iBlock, nVarsToPass
-    real, dimension(nMlts, nLats, nVarsToPass), intent(in) :: Buffer_III
+    ! Arguments: returning IE variables on a MLT-Lat grid, one
+    ! per hemisphere, for nVarIn variables.
+    integer,          intent(in) :: nMlts, nLats, nVarIn
+    character(len=3), intent(in) :: NameVarUaIn_V(nVarIn)
+    real,             intent(in) :: Buffer_IIBV(nMlts, nLats, 2, nVarIn)
 
-    !\
     ! UA_Lats and UA_Mlts are the latitudes and magnetic local times of the
     !    UA magnetic grid.
     ! iLat and iMlt are the indices of where to find the points in the
     !    UA magnetic grid.
     ! rLat and rMlt are the multiplication factors to get stuff from the
     !    UA magnetic grid.
-    !/
 
     real,    dimension(:,:,:), allocatable :: UA_Lats, UA_Mlts
     integer, dimension(Iono_nTheta,2) :: iLat
     integer, dimension(Iono_nPsi,2)   :: iMlt
-    real, dimension(Iono_nTheta,2)    :: rLat
-    real, dimension(Iono_nPsi,2)      :: rMlt
+    real,    dimension(Iono_nTheta,2) :: rLat
+    real,    dimension(Iono_nPsi,2)   :: rMlt
 
-    integer :: iError, i, j, ii, jj
+    real, dimension(IONO_nTheta,IONO_nPsi) :: TmpVar_II
+
+    integer :: iError, i, j, ii, jj, iVar, iBlock
     real    :: t, p
 
     integer, parameter :: Fac_ = 1
@@ -803,30 +863,47 @@ contains
     integer, parameter :: Lat_ = 4
     integer, parameter :: Mlt_ = 5
 
+    logical :: DoTest, DoTestMe
     character(len=*), parameter :: NameSub='IE_put_from_ua'
-
     !--------------------------------------------------------------------------
+    ! Set test variables.
+    call CON_set_do_test(NameSub,DoTest,DoTestMe)
 
+    ! Indicate that new information has arrived -> IE will recalculate solution
     IsNewInput=.true.
 
-    if (nVarsToPass == 5) then
-       if (.not.allocated(UA_Lats)) then
-          allocate(UA_Lats(nMLTs, nLats,2), &
-               UA_Mlts(nMLTs, nLats,2),     &
-               stat=iError)
-          call check_allocate(iError,NameSub//'UA_Lats,UA_Mlts')
-       endif
-       UA_Lats(:,:,iBlock) = Buffer_III(:,:,Lat_)
-       UA_Mlts(:,:,iBlock) = Buffer_III(:,:,Mlt_)
+    ! Set intelligent defaults as needed:
+    IONO_NORTH_TGCM_JR = 0.0
+    IONO_SOUTH_TGCM_JR = 0.0
 
-       !\
-       ! In this instance, t = theta
-       !/
+    ! Check if arrays are allocated & allocate as necessary
+    if (.not.allocated(UA_Lats)) then
+       allocate(UA_Lats(nMLTs, nLats,2), UA_Mlts(nMLTs, nLats,2), stat=iError)
+       call check_allocate(iError,NameSub//'UA_Lats,UA_Mlts')
+    endif
 
-       do i = 1, IONO_nTheta
+    ! Copy over lat/lon into UA_* vars
+    do iVar=1, nVarIn
+       select case (NameVarUaIn_V(iVar))
+       case('lat')
+          UA_Lats(:,:,1) = Buffer_IIBV(:,:,1,iVar)
+          UA_Lats(:,:,2) = Buffer_IIBV(:,:,2,iVar)
+       case('lon')
+          UA_Mlts(:,:,1) = Buffer_IIBV(:,:,1,iVar)
+          UA_Mlts(:,:,2) = Buffer_IIBV(:,:,2,iVar)
+       case default
+          ! Other vars handled below.
+       end select
+    enddo
+
+    ! Set up index mapping for both hemispheres to
+    ! interpolate from UA to IE grid
+    BLOCK: do iBlock=1, 2
+       ! Mapping for lat/colat:
+       COLAT: do i = 1, IONO_nTheta ! convert colat to lat:
           if (iBlock == 1) t = 90.0 - Iono_North_Theta(i,1)*cRadToDeg
           if (iBlock == 2) t = 90.0 - Iono_South_Theta(i,1)*cRadToDeg
-
+          ! In this instance, t is theta -- Aaron Ridley, 1998
           if (t >= maxval(UA_Lats(1,:,iBlock))) then
              ii = nLats-1
              iLat(i,iBlock) = ii
@@ -851,147 +928,122 @@ contains
                 endif
                 ii = ii+1
              enddo
-
           endif
+       enddo COLAT
 
-       enddo
-
-       !\
-       ! In this instance, p = psi
-       !/
-
-       do j = 1, IONO_nPsi
+       ! Mappint for MLT/longitude
+       LON: do j = 1, IONO_nPsi
           if (iBlock == 1) p = mod(Iono_North_Psi(1,j)*12.0/cPi + 12.0,24.0)
           if (iBlock == 2) p = mod(Iono_South_Psi(1,j)*12.0/cPi + 12.0,24.0)
+          ! added a compatible time shift in CON couple
 
           jj = 1
+
           do while (jj < nMlts)
-             if ((p >= UA_Mlts(jj,1,iBlock) .and. &
-                  p <  UA_Mlts(jj+1,1,iBlock)) .or.  &
-                  (p <= UA_Mlts(jj,1,iBlock) .and. &
-                  p >  UA_Mlts(jj+1,1,iBlock))) then
+
+             if (p >= UA_Mlts(jj,1,iBlock) .and. &
+                  p <  UA_Mlts(jj+1,1,iBlock)) then
                 iMlt(j,iBlock) = jj
                 rMlt(j,iBlock) = 1.0 - (p - UA_Mlts(jj,1,iBlock)) / &
                      (UA_Mlts(jj+1,1,iBlock) - UA_Mlts(jj,1,iBlock))
                 jj = nMlts
+             else if (p >= UA_Mlts(nMlts,1,iBlock) .and. &
+                  p <  UA_Mlts(1,1,iBlock)) then
+                iMlt(j,iBlock) = nMlts
+                rMlt(j,iBlock) = 1.0 - (p - UA_Mlts(nMlts,1,iBlock)) / &
+                     (UA_Mlts(1,1,iBlock) - UA_Mlts(nMlts,1,iBlock))
+                jj = nMlts
+             else if (p <= minval(UA_Mlts(:,1,iBlock))) then
+                jj = minloc(UA_Mlts(:,1,iBlock),DIM=1)
+                if (jj == 1) then
+                   iMlt(j,iBlock) = nMlts
+                   rMlt(j,iBlock) = 1.0 - (p - (UA_Mlts(nMlts,1,iBlock)-24)) /&
+                        (UA_Mlts(jj,1,iBlock) - (UA_Mlts(nMlts,1,iBlock)-24))
+                else
+                   iMlt(j,iBlock) = jj-1
+                   rMlt(j,iBlock) = 1.0 - (p - (UA_Mlts(jj-1,1,iBlock) - 24))  /&
+                        (UA_Mlts(jj,1,iBlock) - (UA_Mlts(jj-1,1,iBlock) - 24))
+                end if
+                jj=nMlts
+             else if (p >= maxval(UA_Mlts(:,1,iBlock))) then
+                jj = maxloc(UA_Mlts(:,1,iBlock),DIM=1)
+                if (jj == nMlts) then
+                   iMlt(j,iBlock) = jj
+                   rMlt(j,iBlock) = 1.0 - (p - UA_Mlts(jj,1,iBlock)) / &
+                        (UA_Mlts(1,1,iBlock) - (UA_Mlts(jj,1,iBlock)-24))
+                else
+                   iMlt(j,iBlock) = jj
+                   rMlt(j,iBlock) = 1.0 - (p - UA_Mlts(jj,1,iBlock)) / &
+                        (UA_Mlts(jj+1,1,iBlock) - (UA_Mlts(jj,1,iBlock)-24))
+                end if
+                jj=nMlts
+             end if
+             if (iMlt(j,iBlock) == 0) then
+                iMlt(j,iBlock) = 1
              end if
              jj = jj+1
-          enddo
+          end do
+       end do LON
 
-       enddo
+    end do BLOCK
 
-       !write(*,*)NameSub,' iBlock=',iBlock,&
-       !     ' iLat(1:5)=',iLat(1:5,iBlock), &
-       !     ' rLat(1:5)=',rLat(1:5,iBlock)
-       !
-       !write(*,*)NameSub,' iBlock=',iBlock,&
-       !     ' iLat(Iono_nTheta-5:Iono_nTheta)=',&
-       !     iLat(Iono_nTheta-5:Iono_nTheta,iBlock), &
-       !     ' rLat(Iono_nTheta-5:Iono_nTheta)=',&
-       !     rLat(Iono_nTheta-5:Iono_nTheta,iBlock)
+    ! Loop over variables and interpolate from UA to IE grid.
+    VAR: do iVar=1, nVarIn
+       ! Skip lat/lon
+       if ((NameVarUaIn_V(iVar) == 'lat').or.(NameVarUaIn_V(iVar) == 'lon')) &
+            CYCLE VAR
+       do iBlock=1,2
+          TmpVar_II=0.0
+          ! Interpolate value to IE grid...
+          do i = 1, Iono_nTheta
+             ! t is the interpolation coefficient for theta
+             ii = iLat(i,iBlock)
+             t  = rLat(i,iBlock)
 
-    end if
+             do j = 1, Iono_nPsi
+                ! p is the interpolation coefficient for psi
+                jj = iMlt(j,iBlock)
+                p  = rMlt(j,iBlock)
 
+                ! Interpolate variables
+                TmpVar_II(i,j) =    &
+                     (    t)*(    p)*Buffer_IIBV(jj  ,ii  ,iBlock,iVar) + &
+                     (1.0-t)*(    p)*Buffer_IIBV(jj  ,ii+1,iBlock,iVar) + &
+                     (    t)*(1.0-p)*Buffer_IIBV(jj+1,ii  ,iBlock,iVar) + &
+                     (1.0-t)*(1.0-p)*Buffer_IIBV(jj+1,ii+1,iBlock,iVar)
+             end do
+          end do
 
-    if (iBlock == 1) then ! iBlock == 1: Northern Hemisphere
-
-       do i = 1, Iono_nTheta
-
-          !\
-          ! Now t = 0.0 - 1.0, and is the interpolation coefficient for theta
-          !/
-
-          ii = iLat(i,iBlock)
-          t  = rLat(i,iBlock)
-
-          do j = 1, Iono_nPsi
-
-             !\
-             ! Now p = 0.0 - 1.0, and is the interpolation coefficient for psi
-             !/
-
-             jj = iMlt(j,iBlock)
-             p  = rMlt(j,iBlock)
-
-             IONO_NORTH_SigmaH(i,j) =                          &
-                  (    t)*(    p)*Buffer_III(jj  ,ii  ,Hal_) + &
-                  (1.0-t)*(    p)*Buffer_III(jj  ,ii+1,Hal_) + &
-                  (    t)*(1.0-p)*Buffer_III(jj+1,ii  ,Hal_) + &
-                  (1.0-t)*(1.0-p)*Buffer_III(jj+1,ii+1,Hal_)
-
-             IONO_NORTH_SigmaP(i,j) =                          &
-                  (    t)*(    p)*Buffer_III(jj  ,ii  ,Ped_) + &
-                  (1.0-t)*(    p)*Buffer_III(jj  ,ii+1,Ped_) + &
-                  (    t)*(1.0-p)*Buffer_III(jj+1,ii  ,Ped_) + &
-                  (1.0-t)*(1.0-p)*Buffer_III(jj+1,ii+1,Ped_)
-
-             if(DoCoupleUaCurrent)then
-                IONO_NORTH_TGCM_JR(i,j) =                          &
-                     (    t)*(    p)*Buffer_III(jj  ,ii  ,Fac_) + &
-                     (1.0-t)*(    p)*Buffer_III(jj  ,ii+1,Fac_) + &
-                     (    t)*(1.0-p)*Buffer_III(jj+1,ii  ,Fac_) + &
-                     (1.0-t)*(1.0-p)*Buffer_III(jj+1,ii+1,Fac_)
+          ! Copy result to correct IE variable, taking care
+          ! to use the correct hemisphere.  Conducantances are
+          ! given floor values to prevent problems.
+          select case (NameVarUaIn_V(iVar))
+          case('hal') ! Hall conductance
+             if(iBlock==1)then
+                IONO_NORTH_SigmaH = max(TmpVar_II, 2*StarLightCond)
              else
-                IONO_NORTH_TGCM_JR(i,j) = 0.0
+                IONO_SOUTH_SigmaH = max(TmpVar_II, 2*StarLightCond)
              end if
-
-          enddo
-       enddo
-       ! Limit the conductance with the StarLightConductance
-       IONO_NORTH_SigmaP = max(IONO_NORTH_SigmaP,   StarLightCond)
-       IONO_NORTH_SigmaH = max(IONO_NORTH_SigmaH, 2*StarLightCond)
-
-    else ! iBlock == 2: Southern Hemisphere
-
-       do i = 1, Iono_nTheta
-
-          !\
-          ! Now t = 0.0 - 1.0, and is the interpolation coefficient for theta
-          !/
-
-          ii = iLat(i,iBlock)
-          t  = rLat(i,iBlock)
-
-          do j = 1, Iono_nPsi
-
-             !\
-             ! Now p = 0.0 - 1.0, and is the interpolation coefficient for psi
-             !/
-
-             jj = iMlt(j,iBlock)
-             p  = rMlt(j,iBlock)
-
-             IONO_SOUTH_SigmaH(i,j) =                          &
-                  (    t)*(    p)*Buffer_III(jj  ,ii  ,Hal_) + &
-                  (1.0-t)*(    p)*Buffer_III(jj  ,ii+1,Hal_) + &
-                  (    t)*(1.0-p)*Buffer_III(jj+1,ii  ,Hal_) + &
-                  (1.0-t)*(1.0-p)*Buffer_III(jj+1,ii+1,Hal_)
-
-             IONO_SOUTH_SigmaP(i,j) =                          &
-                  (    t)*(    p)*Buffer_III(jj  ,ii  ,Ped_) + &
-                  (1.0-t)*(    p)*Buffer_III(jj  ,ii+1,Ped_) + &
-                  (    t)*(1.0-p)*Buffer_III(jj+1,ii  ,Ped_) + &
-                  (1.0-t)*(1.0-p)*Buffer_III(jj+1,ii+1,Ped_)
-
-             if(DoCoupleUaCurrent)then
-                IONO_SOUTH_TGCM_JR(i,j) =                          &
-                     (    t)*(    p)*Buffer_III(jj  ,ii  ,Fac_) + &
-                     (1.0-t)*(    p)*Buffer_III(jj  ,ii+1,Fac_) + &
-                     (    t)*(1.0-p)*Buffer_III(jj+1,ii  ,Fac_) + &
-                     (1.0-t)*(1.0-p)*Buffer_III(jj+1,ii+1,Fac_)
+          case('ped') ! Pedersen conductance
+             if(iBlock==1)then
+                IONO_NORTH_SigmaP = max(TmpVar_II, StarLightCond)
              else
-                IONO_SOUTH_TGCM_JR(i,j) = 0.0
+                IONO_SOUTH_SigmaP = max(TmpVar_II, StarLightCond)
              end if
-          enddo
-       enddo
-       ! Limit the conductance with the StarLightConductance
-       IONO_SOUTH_SigmaP = max(IONO_SOUTH_SigmaP,   StarLightCond)
-       IONO_SOUTH_SigmaH = max(IONO_SOUTH_SigmaH, 2*StarLightCond)
-
-    end if
+          case('fac') ! Neutral wind FACs
+             if(iBlock==1)then
+                IONO_NORTH_TGCM_JR = TmpVar_II
+             else
+                IONO_SOUTH_TGCM_JR = TmpVar_II
+             end if
+          case default
+             call CON_stop(NameSub//' Unrecognized coupling variable: ', &
+                  NameVarUaIn_V(iVar))
+          end select
+       end do
+    end do VAR
 
   end subroutine IE_put_from_ua
-
   !============================================================================
 
   subroutine IE_put_from_im(nPoint,iPointStart,Index,Weight,DoAdd,Buff_V,nVar)
@@ -1002,13 +1054,13 @@ contains
 
     use CON_router,   ONLY: IndexPtrType, WeightPtrType
 
-    character(len=*), parameter   :: NameSub='IE_put_from_im'
     integer,intent(in)            :: nPoint, iPointStart, nVar
     real, intent(in)              :: Buff_V(nVar)
     type(IndexPtrType),intent(in) :: Index
     type(WeightPtrType),intent(in):: Weight
     logical,intent(in)            :: DoAdd
-    integer ::iLat,iLon
+    integer:: iLat,iLon
+    character(len=*), parameter:: NameSub = 'IE_put_from_im'
     !--------------------------------------------------------------------------
     if(nPoint>1)then
        write(*,*)NameSub,': nPoint,iPointStart,Weight=',&
@@ -1037,7 +1089,6 @@ contains
     IsNewInput = .true.
 
   end subroutine IE_put_from_im
-
   !============================================================================
 
   subroutine IE_get_for_im(nPoint,iPointStart,Index,Weight,Buff_V,nVar)
@@ -1055,8 +1106,6 @@ contains
          cpcp_north, cpcp_south
     use IE_ModMain,    ONLY: TypeImCouple
 
-    character(len=*), parameter :: NameSub='IE_get_for_im'
-
     integer,intent(in)            :: nPoint, iPointStart, nVar
     real,intent(out)              :: Buff_V(nVar)
     type(IndexPtrType),intent(in) :: Index
@@ -1065,6 +1114,7 @@ contains
     integer :: iBlock, i, j, iSouth, iPoint
     real    :: w
 
+    character(len=*), parameter :: NameSub='IE_get_for_im'
     !--------------------------------------------------------------------------
     Buff_V = 0.0
 
@@ -1131,14 +1181,16 @@ contains
     end do
 
   contains
+    !==========================================================================
 
     real function minmod(a,b)
       real, intent(in) :: a,b
+      !------------------------------------------------------------------------
       minmod = (sign(0.5, a) + sign(0.5, b)) * min(abs(a), abs(b))
     end function minmod
+    !==========================================================================
 
   end subroutine IE_get_for_im
-
   !============================================================================
 
   subroutine IE_put_from_im_complete
@@ -1147,8 +1199,8 @@ contains
     use ModIonosphere
     use ModMpi
 
-    integer iError, i 
-
+    integer iError, i
+   !---------------------------------------------------------------------------
     iono_north_im_eflux(:,iono_npsi) = iono_north_im_eflux(:,1)
     iono_north_im_avee(:,iono_npsi)  = iono_north_im_avee(:,1)
     iono_north_im_jr(:,iono_npsi)  = iono_north_im_jr(:,1)
@@ -1170,35 +1222,31 @@ contains
     IsFilledWithIm = .false.
 
   end subroutine IE_put_from_im_complete
-
   !============================================================================
 
   subroutine IE_init_session(iSession, tSimulation)
 
     ! Initialize the Ionosphere Electrostatic (IE) module for session iSession
 
-    use CON_physics,   ONLY: get_time, get_planet, get_axes
-    use ModIonosphere, ONLY: IONO_Bdp, init_mod_ionosphere
-    use IE_ModMain,    ONLY: time_accurate, time_simulation, ThetaTilt
-    use IE_ModIo,      ONLY: dt_output, t_output_last
-    use ModConductance,ONLY: NameAuroraMod
-    use ModIeRlm,      ONLY: load_conductances
+    use CON_physics,    ONLY: get_time, get_planet, get_axes
+    use ModIonosphere,  ONLY: IONO_Bdp, init_mod_ionosphere
+    use IE_ModMain,     ONLY: time_accurate, time_simulation, ThetaTilt
+    use IE_ModIo,       ONLY: dt_output, t_output_last
+    use ModConductance, ONLY: NameAuroraMod
+    use ModIeRlm,       ONLY: load_conductances
     use ModProcIE
 
-    !INPUT PARAMETERS:
     integer,  intent(in) :: iSession      ! session number (starting from 1)
     real,     intent(in) :: tSimulation   ! seconds from start time
 
-    !DESCRIPTION:
     ! Initialize the Ionosphere Electrostatic (IE) module for session iSession
-
-    character(len=*), parameter :: NameSub='IE_init_session'
 
     logical :: IsUninitialized=.true.
 
     logical :: DoTest,DoTestMe
+    character(len=*), parameter :: NameSub = 'IE_init_session'
     !--------------------------------------------------------------------------
-    call CON_set_do_test(NameSub,DoTest,DoTestMe)
+    call CON_set_do_test(NameSub, DoTest, DoTestMe)
 
     if(IsUninitialized)then
        call init_mod_ionosphere
@@ -1227,14 +1275,13 @@ contains
     end if
 
   end subroutine IE_init_session
-
   !============================================================================
+
   subroutine IE_finalize(tSimulation)
 
     use ModProcIE
     use IE_ModMain, ONLY: Time_Array, time_simulation, nSolve, DoSaveLogFile
     use IE_ModIo, ONLY: nFile, unitlog
-    use ModIonoMagPerturb, ONLY: PosMagnetometer_II, TypeCoordMag_I
     use CON_physics, ONLY: get_time
     use ModTimeConvert, ONLY: time_real_to_int
     use ModKind, ONLY: Real8_
@@ -1242,13 +1289,12 @@ contains
     use ModConductance, ONLY: DoUseAurora, NameAuroraMod
     use ModIeRLM
 
-    !INPUT PARAMETERS:
     real,     intent(in) :: tSimulation   ! seconds from start time
-
-    character(len=*), parameter :: NameSub='IE_finalize'
 
     integer :: iFile
     real(Real8_) :: tCurrent
+
+    character(len=*), parameter :: NameSub='IE_finalize'
     !--------------------------------------------------------------------------
     call get_time(tCurrentOut = tCurrent)
     call time_real_to_int(tCurrent, Time_Array)
@@ -1261,12 +1307,8 @@ contains
        end do
     end if
 
-    if(DoSaveLogfile .and. iProc==0)then
-       close(unitlog)
-    end if
-
-    if(allocated(PosMagnetometer_II)) deallocate(&
-         PosMagnetometer_II, TypeCoordMag_I)
+    if(DoSaveLogfile .and. iProc==0 .and. unitlog>0) &
+         call close_file(unitlog, NameCaller=NameSub)
 
     call clean_mod_ionosphere
 
@@ -1281,9 +1323,8 @@ contains
        ! Coefficient grids:
        deallocate(cond_mlts, cond_lats)
     end if
-    
-  end subroutine IE_finalize
 
+  end subroutine IE_finalize
   !============================================================================
 
   subroutine IE_save_restart(tSimulation)
@@ -1291,8 +1332,7 @@ contains
     use CON_coupler, ONLY: NameRestartOutDirComp
     use IE_ModIo,   ONLY: NameRestartOutDir
 
-    !INPUT PARAMETERS:
-    real,     intent(in) :: tSimulation   ! seconds from start time
+    real, intent(in) :: tSimulation   ! seconds from start time
 
     character(len=*), parameter :: NameSub='IE_save_restart'
     !-------------------------------------------------------------------------
@@ -1301,38 +1341,38 @@ contains
     call ionosphere_write_restart_file
 
   end subroutine IE_save_restart
-
   !============================================================================
 
-  subroutine IE_run(tSimulation,tSimulationLimit)
+  subroutine IE_run(tSimulation, tSimulationLimit)
 
     use ModProcIE
     use IE_ModMain
-    use IE_ModIo, ONLY: DoRestart
+    use IE_ModIo, ONLY: DoRestart, iUnitOut, StringPrefix
     use CON_physics, ONLY: get_time, get_axes, time_real_to_int
+    use ModLookupTable, ONLY: i_lookup_table, init_lookup_table, &
+         interpolate_lookup_table
     use ModKind
 
-    !INPUT/OUTPUT ARGUMENTS:
     real, intent(inout) :: tSimulation   ! current time of component
 
-    !INPUT ARGUMENTS:
     real, intent(in) :: tSimulationLimit ! simulation time not to be exceeded
 
-    real(Real8_) :: tStart
+    real(Real8_) :: tStart, tNow
+    real         :: tNowReal
     integer      :: nStep
 
     logical :: DoTest, DoTestMe
-    character(len=*), parameter :: NameSub='IE_run'
+    character(len=*), parameter :: NameSub = 'IE_run'
     !--------------------------------------------------------------------------
     call CON_set_do_test(NameSub, DoTest, DoTestMe)
 
-    if(DoTest)write(*,*)NameSub,': iProc,tSimulation,tSimulationLimit=',&
-         iProc,tSimulation,tSimulationLimit
+    if(DoTest)write(*,*)NameSub,': iProc, tSimulation, tSimulationLimit=',&
+         iProc, tSimulation, tSimulationLimit
 
     ! Store the current time
     time_simulation = tSimulation
 
-    ! Since IE is not a time dependent component, it may advance to the 
+    ! Since IE is not a time dependent component, it may advance to the
     ! next coupling time in a time accurate run
     if(time_accurate)tSimulation = tSimulationLimit
 
@@ -1354,7 +1394,7 @@ contains
           DoRestart = .false.
        end if
 
-       ! Do not solve if there is no new input 
+       ! Do not solve if there is no new input
        RETURN
     end if
 
@@ -1364,7 +1404,7 @@ contains
     ! Check if we can have a reasonable magnetic field already
     call get_time(nStepOut=nStep)
 
-    if(DoTest)write(*,*)NameSub,': iProc,nStep = ',iProc,nStep
+    if(DoTest)write(*,*)NameSub,': iProc, nStep = ', iProc, nStep
 
     ! After the solve this input can be considered old
     IsNewInput = .false.
@@ -1372,12 +1412,38 @@ contains
     ! Obtain the position of the magnetix axis
     call get_axes(time_simulation, MagAxisTiltGsmOut=ThetaTilt)
 
+    ! Get the current time
     call get_time(tStartOut=tStart)
-    call time_real_to_int(tStart + time_simulation, Time_Array)
+    tNow = tStart + time_simulation
+    call time_real_to_int(tNow, Time_Array)
+
+    ! If f107_flux is negative, use lookup table
+    if(f107_flux < 0)then
+       iTableF107 = i_lookup_table('F107')
+       if(iTableF107 < 0)then
+          ! Load default F107 table from Param/f107.txt
+          write(iUnitOut,*) StringPrefix, ' loading Param/f107.txt'
+          call init_lookup_table( &
+               NameTable = 'F107', &
+               NameCommand = 'load', &
+               NameFile = 'Param/f107.txt', &
+               TypeFile = 'log')
+          iTableF107 = i_lookup_table('F107')
+       end if
+    end if
+
+    ! get F10.7 from lookup table if available
+    if(iTableF107 > 0)then
+       tNowReal = tNow ! so it compiles with single precision
+       call interpolate_lookup_table(iTableF107, tNowReal, f107_flux)
+    end if
+
+    if(f107_flux < 0) &
+         call CON_stop(NameSub//': provide positive F10.7 value or table')
 
     nSolve = nSolve + 1
 
-    if(DoTest)write(*,*) 'solve'
+    if(DoTest)write(*,'(a,f8.3)') ' solve with F10.7=', f107_flux
 
     ! Solve for the ionosphere potential
     call IE_solve
@@ -1397,15 +1463,14 @@ contains
     if(DoTest)write(*,*) 'done with IE_run'
 
   end subroutine IE_run
-
   !============================================================================
+
   subroutine IE_get_for_ps(Buffer_II, iSize, jSize, tSimulation)
 
     use ModNumConst,   ONLY: cRadToDeg
-    use ModIoUnit,     ONLY: UnitTmp_
     use ModIonosphere, ONLY: IONO_nPsi, IONO_nTheta, &
-         IONO_Phi, IONO_NORTH_Theta,IONO_NORTH_Psi 
-    
+         IONO_Phi, IONO_NORTH_Theta,IONO_NORTH_Psi
+
     integer, intent(in) :: iSize, jSize
     real,    intent(out):: Buffer_II(iSize,jSize)
     real,    intent(in) :: tSimulation
@@ -1414,7 +1479,7 @@ contains
     real    :: tSimulationTmp
 
     logical :: DoTest, DoTestMe
-    character (len=*),parameter :: NameSub='IE_get_for_ps'
+    character (len=*), parameter :: NameSub = 'IE_get_for_ps'
     !--------------------------------------------------------------------------
     if(iSize /= IONO_nTheta*2-1 .or. jSize /= IONO_nPsi)then
        write(*,*)NameSub//' incorrect buffer size=',iSize,jSize,&
@@ -1426,9 +1491,9 @@ contains
     tSimulationTmp = tSimulation
     call IE_run(tSimulationTmp, tSimulation)
 
-        ! Pass potential to coupler:
+    ! Pass potential to coupler:
     Buffer_II = IONO_Phi
-    
+
     if(DoTestMe)then
        ! Write info to screen:
        write(*,*) "IE: Preparing potential for PS"
@@ -1438,7 +1503,8 @@ contains
        write(*,*) "IE: Size of pot array = ", size(Buffer_II), &
             size(Buffer_II,1), size(Buffer_II,2)
        ! Write potential to file:
-       open(unit=UnitTmp_, file='ie_potential.txt', status='replace')
+       call open_file(FILE='ie_potential.txt', STATUS='replace', &
+            NameCaller=NameSub)
        write(UnitTmp_,*)'Colat   Lon   Potential(V)'
        do i=1, iSize
           do j=1, jSize
@@ -1447,113 +1513,10 @@ contains
                   IONO_North_Psi(i,j)*cRadToDeg, Buffer_II(i,j)
           end do
        end do
-       close(UnitTmp_)
+       call close_file(NameCaller=NameSub)
     end if
-    
+
   end subroutine IE_get_for_ps
-
   !============================================================================
-
-  subroutine IE_get_mag_for_gm(Buffer_DII, iSize)
-    ! For all virtual magnetometers and virtual index magnetometers, collect
-    ! the magnetic pertubation calculated from the IE/Ridley_serial results.
-    ! These values are returned to the GM module to calculate the total
-    ! pertubation experienced by each station.
-    ! iSize is the number of expected magnetometers for successful coupling.
-    ! Buffer_DII is an array that hold all values to be passed to GM.
-
-    use ModIonoMagPerturb, ONLY: nMagnetometer, get_iono_magperturb_now
-
-    integer, intent(in):: iSize
-    real, intent(out)  :: Buffer_DII(3,2,iSize)
-    
-    real, dimension(3,nMagnetometer) :: VirtMagJh_DI,  VirtMagJp_DI, Xyz_DI
-    integer :: i
-    character(len=*), parameter :: NameSub='IE_get_mag_for_gm'
-    !--------------------------------------------------------------------------
-    ! Initialize Buffer to zero.
-    Buffer_DII = 0.0
-
-    if( (nMagnetometer) /= iSize) call CON_stop( &
-         NameSub//' Number of magnetometers does not match!')
-
-    ! Obtain Hall and Pedersen perturbations for regular magnetometers
-    call get_iono_magperturb_now(VirtMagJh_DI,  VirtMagJp_DI, Xyz_DI)
-    
-    ! Place perturbations into end of Buffer
-    do i =  1, nMagnetometer
-       Buffer_DII(:,1,i) = VirtMagJh_DI(:,i)
-       Buffer_DII(:,2,i) = VirtMagJp_DI(:,i)
-    end do
-
-  end subroutine IE_get_mag_for_gm
-
 end module IE_wrapper
-
 !==============================================================================
-
-subroutine SPS_put_into_ie(Buffer_II, iSize, jSize, NameVar, iBlock)
-
-  use ModIE_Interface
-
-  implicit none
-
-  integer, intent(in)           :: iSize,jSize
-  real, intent(in)              :: Buffer_II(iSize,jSize)
-  character (len=*),intent(in)  :: NameVar
-  integer,intent(in)            :: iBlock
-
-  integer :: i,j,ii
-
-  character (len=*), parameter :: NameSub='SPS_put_into_ie'
-
-  select case(NameVar)
-
-  case('Pot')
-
-     do i = 1, IEi_HavenLats
-        ii = i
-        if (iBlock == 2) ii = IEi_HavenLats - i + 1
-        do j = 1, IEi_HavenMlts
-           IEr3_HavePotential(j,i,iBlock) = Buffer_II(ii,j)
-        enddo
-     enddo
-     !     write(*,*) "Putting Potential : ",iBlock,&
-     !          (maxval(IEr3_HavePotential(:,:,iBlock)) - &
-     !          minval(IEr3_HavePotential(:,:,iBlock)))/1000.0
-
-  case('Ave')
-
-     do i = 1, IEi_HavenLats
-        ii = i
-        if (iBlock == 2) ii = IEi_HavenLats - i + 1
-        do j = 1, IEi_HavenMlts
-           IEr3_HaveAveE(j,i,iBlock) = Buffer_II(ii,j)
-        enddo
-     enddo
-
-     !     write(*,*) "Putting AveE : ",iBlock,&
-     !          maxval(IEr3_HaveAveE(:,:,iBlock)),&
-     !          minval(IEr3_HaveAveE(:,:,iBlock))
-
-  case('Tot')
-
-     do i = 1, IEi_HavenLats
-        ii = i
-        if (iBlock == 2) ii = IEi_HavenLats - i + 1
-        do j = 1, IEi_HavenMlts
-           IEr3_HaveEFlux(j,i,iBlock) = &
-                Buffer_II(ii,j) / (1.0e-7 * 100.0 * 100.0)
-        enddo
-     enddo
-
-  case default
-
-     call CON_stop(NameSub//' invalid NameVar='//NameVar)
-
-  end select
-
-end subroutine SPS_put_into_ie
-
-
-
