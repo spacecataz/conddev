@@ -1,10 +1,11 @@
-!  Copyright (C) 2002 Regents of the University of Michigan, portions used with permission 
+!  Copyright (C) 2002 Regents of the University of Michigan,
+!  portions used with permission
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 
 Module ModConductance
 
   use ModIonosphere
-  
+
   implicit none
   save
 
@@ -23,12 +24,12 @@ Module ModConductance
 
   ! Name of empirical conductance model, if used:
   character(len=4) :: NameEmpModel='RLM5' ! Legacy iModel=3,4,5 or CMEE
-  
+
   ! Background & constant conductance values:
   real :: f107_flux=150, SigmaHalConst=0, SigmaPedConst=0, &
        StarLightCond=0.25, & !replaces starlightpedconductance
        PolarCapPedCond=0.25  !replaces PolarCapPedConductance
-  
+
   ! Floor values for GM density and pressure, SI units:
   real, parameter :: GmRhoFloor = 1E-21, GmPFloor = 1E-13
 
@@ -45,7 +46,7 @@ Module ModConductance
        !IONO_NORTH_MONO_Ave_E=0.0, IONO_SOUTH_MONO_Ave_E=0.0, &
        !IONO_NORTH_DIFF_EFlux=0.0, IONO_SOUTH_DIFF_EFlux=0.0, &
        !IONO_NORTH_MONO_EFlux=0.0, IONO_SOUTH_MONO_EFlux=0.0
-  
+
 contains
   !===========================================================================
   subroutine generate_conductance(NameHemiIn)
@@ -62,7 +63,7 @@ contains
 
     ! Local containers for grid in current hemisphere:
     real, dimension(IONO_nTheta, IONO_nPsi) :: psi, theta
-    
+
     ! Local containers for precipitation:
     real, dimension(IONO_nTheta, IONO_nPsi) :: &
          AvgEDiffe_II=0.0, EfluxDiffe_II=0.0,  &
@@ -73,7 +74,7 @@ contains
     ! Local container for hemispheric grid spacings:
     real, dimension(IONO_nTheta) :: dTheta
     real, dimension(IONO_nPsi)   :: dPsi
-    
+
     ! Local containers for conductance components:
     real, dimension(IONO_nTheta,IONO_nPsi) ::      &
          SigmaHalEuv_II =0.0, SigmaPedEuv_II =0.0, &
@@ -90,7 +91,7 @@ contains
     ! Intermediate values:
     real, dimension(IONO_nTheta,IONO_nPsi)  :: &
          sn, cs, sn2, cs2, cs3, cs4, C
-    
+
     ! Debug variables:
     character(len=*), parameter :: NameSub='generate_conductance'
     logical :: DoTestMe, DoTest
@@ -102,7 +103,7 @@ contains
     ! Set some convenience variables to prevent very long lines:
     nPsi = IONO_nPsi
     nTheta = IONO_nTheta
-    
+
     ! Configure approach to match hemisphere:
     if(NameHemiIn .eq. 'north') then
        iBlockNow = 1
@@ -115,7 +116,7 @@ contains
     else
        call CON_stop(NameSub//': Unrecognized hemisphere -- '//NameHemiIn)
     end if
-    
+
     ! Create temporary arrays to hold colat/lon for current hemisphere:
     if(NameHemiIn .eq. 'north')then
        theta = IONO_NORTH_Theta
@@ -132,7 +133,7 @@ contains
 
     ! Add aurora conductances.  Aurora models obtain/calculate average energy
     ! and energy flux for diffuse, discrete, and broadband (all default to
-    ! zero).  
+    ! zero).
     if (DoUseAurora) then
        ! Obtain average energy and energy flux values based on
        ! selected aurora model:
@@ -147,7 +148,7 @@ contains
           call CON_stop(NameSub//': Unrecognized auroral model - ' &
                //NameAuroraMod)
        end select
-              
+
        ! use robinson here to fill aurora conductance.
        ! SigmaHalAur = ConvertFluxSigma(AvgEDiff, EfluxDiff, 'robinson') + gallrich(AvgEIdif,
     end if
@@ -215,7 +216,7 @@ contains
        dSigmaPsPs_dTheta(2:nTheta-1,j) = &
             (SigmaPsPs(3:nTheta,j) - SigmaPsPs(1:nTheta-2,j)) / dTheta(2:nTheta-1)
     end do
-    
+
     ! d/dPsi derivatives:
     do i=2, nTheta-1
        dSigmaThTh_dPsi(i,2:nPsi-1) = &
@@ -242,7 +243,7 @@ contains
          (SigmaThPs(2:nTheta-1,2)-SigmaThPs(2:nTheta-1,nPsi-1)) / dPsi(nPsi)
     dSigmaPsPs_dPsi(2:nTheta-1,nPsi) = &
          (SigmaPsPs(2:nTheta-1,2)-SigmaPsPs(2:nTheta-1,nPsi-1)) / dPsi(nPsi)
-    
+
     ! Place derivative results into correct hemisphere:
     if(NameHemiIn.eq.'north')then
        ! Off-diagonal terms:
@@ -270,7 +271,7 @@ contains
        IONO_SOUTH_dSigmaPsPs_dPsi = dSigmaPsPs_dPsi
 
     end if
-            
+
   end subroutine generate_conductance
 
   !===========================================================================
@@ -287,18 +288,18 @@ contains
     !use IE_ModSize
     use ModNumConst, ONLY: cDegToRad
     use IE_ModMain,  ONLY: CosThetaTilt, SinThetaTilt
-    
+
     character(len=*), intent(in) :: NameHemiIn
     real, intent(out), dimension(IONO_nTheta,IONO_nPsi) :: &
          CondHalOut_II, CondPedOut_II
 
     integer :: i, j
-    
+
     real, parameter :: cBlendAngle = 70.0*cDegToRad
     real :: f107p53, f107p49, cos_limit, meeting_value_p, meeting_value_h
     real, dimension(IONO_nTheta,IONO_nPsi) :: cos_SZA, X_II, Y_II, Z_II, &
          SigmaH_EUV, SigmaH_SCAT, SigmaP_EUV, SigmaP_SCAT
-    
+
     logical :: DoTest, DoTestMe
     character(len=*), parameter :: NameSub='EUV_cond_II'
     !------------------------------------------------------------------------
@@ -320,7 +321,7 @@ contains
     ! Calculate the cosine of the solar zenith angle:
     cos_SZA = (X_II*CosThetaTilt - Z_II*SinThetaTilt) &
          / sqrt(X_II**2 + Y_II**2 + Z_II**2)
-    
+
     ! We are going to need F10.7 ^ 0.53 and F10.7 ^ 0.49 a lot,
     ! So, let's just store them straight away:
     f107p53 = f107_flux**0.53
@@ -328,7 +329,7 @@ contains
 
     ! Point at which to merge two functions:
     cos_limit = cos(cBlendAngle)
-    
+
     ! "meeting values" are M&B at SZA=blendAngle degrees.
     meeting_value_p = f107p49*(0.34*cos_limit+0.93*sqrt(cos_limit))
     meeting_value_h = f107p53*(0.81*cos_limit+0.54*sqrt(cos_limit))
@@ -354,9 +355,9 @@ contains
     ! Sum the EUV and scattering conductances together:
     CondHalOut_II = sqrt(SigmaH_EUV**2 + SigmaH_SCAT**2)
     CondPedOut_II = sqrt(SigmaP_EUV**2 + SigmaP_SCAT**2)
-        
+
   end subroutine calc_euv_cond
-  
+
   !===========================================================================
   subroutine smooth_lagrange_polar(a_II, iLatSize, jLonSize, tolIn)
     ! Use a simple sliding window technique to smooth a 2D array in polar
@@ -397,7 +398,7 @@ contains
             sum(a_II(i-1:i+1, 2))        +  &
             a_II(i-1,1) + a_II(i+1,1)       &
             ) / 8.0
-       
+
        aSmooth_II(i,jLonSize) = (              & ! At lon=360 degrees
             sum(a_II(i-1:i+1, jLonSize -1)) +  &
             sum(a_II(i-1:i+1, 1))           +  &
@@ -412,13 +413,13 @@ contains
                a_II(i+1,j) + a_II(i-1,j)  & !above and below
                )/ 8.0
        end do lon
-       
+
     end do colat
 
     ! Apply smoothing to discrete_nf only where smoothing changes values
     ! by tolerance percentage *tol* or more from their original value:
     where (a_II<=ABS(aSmooth_II - a_II) /tol) a_II = aSmooth_II
-    
+
   end subroutine smooth_lagrange_polar
 
   !===========================================================================
@@ -431,7 +432,7 @@ contains
     real, intent(in) :: f10In, StarLightIn, PolarCapIn
 
     logical :: DoTest, DoTestMe
-    character(len=*), parameter :: NameSub='imodel_legacy' 
+    character(len=*), parameter :: NameSub='imodel_legacy'
     !------------------------------------------------------------------------
     select case(iModelIn)
        case(0) ! Constant conductance, Pedersen only; no background
@@ -479,9 +480,9 @@ contains
           write(*,*) NameSub//': iModel = ', iModelIn
           call CON_stop(NameSub//': Invalid imodel value')
     end select
-    
+
   end subroutine imodel_legacy
   !===========================================================================
 
-  
+
 end Module ModConductance

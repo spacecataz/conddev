@@ -1,22 +1,20 @@
-! Copyright (C) 2002 Regents of the University of Michigan, 
-! portions used with permission 
+! Copyright (C) 2002 Regents of the University of Michigan,
+! portions used with permission
 ! For more information, see http://csem.engin.umich.edu/tools/swmf
-!======================================
 !                                     |
 !    Module for Ionosphere Model      |
 !                                     |
-!======================================
 
 module ModIonosphere
+
   use ModNumConst
   use IE_ModSize
+  use ModUtilities, ONLY: CON_stop, CON_set_do_test
 
   implicit none
   save
 
-  !\
   ! Ionosphere solution parameters
-  !/
   real, parameter ::                            &
        IONO_TOLER = 5.0e-05,                    &
        IONO_MU = 1.256637e-06,                  &
@@ -34,9 +32,7 @@ module ModIonosphere
 
   real :: cpcp_north=0.0, cpcp_south=0.0
 
-  !\
   ! Ionosphere Solution on the whole grid
-  !/
   real, allocatable :: IONO_Phi(:,:)
   real, allocatable :: IONO_IonNumFlux(:,:)
   real, allocatable :: IONO_Joule(:,:)
@@ -46,9 +42,7 @@ module ModIonosphere
   real, allocatable :: IONO_SigmaP(:,:)
   real, allocatable :: IONO_SigmaH(:,:)
 
-  !\
   ! Ionosphere solution array definitions
-  !/
   real, allocatable :: IONO_NORTH_Phi(:,:)
   real, allocatable :: IONO_SOUTH_Phi(:,:)
   real, allocatable :: IONO_NORTH_X(:,:)
@@ -159,13 +153,13 @@ module ModIonosphere
   real, allocatable :: IONO_SOUTH_dLat(:,:)
   real, allocatable :: IONO_NORTH_dLon(:,:)
   real, allocatable :: IONO_SOUTH_dLon(:,:)
-  
-  ! Save (X,Y,Z) in different coordinate systems.                               
+
+  ! Save (X,Y,Z) in different coordinate systems.
   real, allocatable :: IONO_NORTH_GEO_XyzD(:, :, :)
   real, allocatable :: IONO_SOUTH_GEO_XyzD(:, :, :)
   real, allocatable :: IONO_NORTH_GSE_XyzD(:, :, :)
   real, allocatable :: IONO_SOUTH_GSE_XyzD(:, :, :)
-    
+
   ! Pentadiagonal matrix for the Poisson equation
   real, allocatable :: C_A(:,:)
   real, allocatable :: C_B(:,:)
@@ -180,10 +174,11 @@ module ModIonosphere
   real, dimension(IONO_nPsi)   :: dPsi_North, dPsi_South
 
 contains
+  !============================================================================
 
-  !===========================================================================
   subroutine init_mod_ionosphere
 
+    !--------------------------------------------------------------------------
     if(allocated(IONO_Phi)) RETURN
 
     ! Initialize these global grid arrays to 0 (for output before solve)
@@ -314,20 +309,22 @@ contains
     IONO_SOUTH_DIFF_Ave_E = 0.; IONO_SOUTH_DIFF_EFlux = 0.
     IONO_NORTH_MONO_Ave_E = 0.; IONO_NORTH_MONO_EFlux = 0.
     IONO_SOUTH_MONO_Ave_E = 0.; IONO_SOUTH_MONO_EFlux = 0.
-    
+
     allocate(IONO_NORTH_GEO_XyzD(3, IONO_nTheta, IONO_nPsi))
     allocate(IONO_NORTH_GSE_XyzD(3, IONO_nTheta, IONO_nPsi))
     allocate(IONO_SOUTH_GEO_XyzD(3, IONO_nTheta, IONO_nPsi))
     allocate(IONO_SOUTH_GSE_XyzD(3, IONO_nTheta, IONO_nPsi))
-    
+
     IONO_NORTH_GEO_XyzD = 0.; IONO_NORTH_GSE_XyzD = 0
     IONO_SOUTH_GEO_XyzD = 0.; IONO_SOUTH_GSE_XyzD = 0
 
-    
+
   end subroutine init_mod_ionosphere
-  !===========================================================================
+  !============================================================================
+
   subroutine clean_mod_ionosphere
 
+    !--------------------------------------------------------------------------
     if(.not.allocated(IONO_Phi)) RETURN
 
     deallocate(IONO_Phi)
@@ -442,12 +439,12 @@ contains
     deallocate(C_C)
     deallocate(C_D)
     deallocate(C_E)
-    
+
     deallocate(IONO_NORTH_GEO_XyzD)
     deallocate(IONO_NORTH_GSE_XyzD)
     deallocate(IONO_SOUTH_GEO_XyzD)
     deallocate(IONO_SOUTH_GSE_XyzD)
-    
+
 
     ! Sources of Conductances
     deallocate(IONO_NORTH_DIFF_Ave_E)
@@ -458,7 +455,9 @@ contains
     deallocate(IONO_SOUTH_DIFF_EFlux)
     deallocate(IONO_NORTH_MONO_EFlux)
     deallocate(IONO_SOUTH_MONO_EFlux)
-    
+
   end subroutine clean_mod_ionosphere
+  !============================================================================
 
 end module ModIonosphere
+!==============================================================================
