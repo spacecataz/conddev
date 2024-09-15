@@ -57,25 +57,6 @@ subroutine IE_solve
         ! Next two calls replaced with:
         call generate_conductance('north')
 
-        !call FACs_to_fluxes(conductance_model, iBlock)
-        !
-        !call ionosphere_conductance(IONO_NORTH_Sigma0,               &
-        !     IONO_NORTH_SigmaH, IONO_NORTH_SigmaP,    &
-        !     IONO_NORTH_SigmaThTh,                    &
-        !     IONO_NORTH_SigmaThPs,                    &
-        !     IONO_NORTH_SigmaPsPs,                    &
-        !     IONO_NORTH_dSigmaThTh_dTheta,            &
-        !     IONO_NORTH_dSigmaThPs_dTheta,            &
-        !     IONO_NORTH_dSigmaPsPs_dTheta,            &
-        !     IONO_NORTH_dSigmaThTh_dPsi,              &
-        !     IONO_NORTH_dSigmaThPs_dPsi,              &
-        !     IONO_NORTH_dSigmaPsPs_dPsi,              &
-        !     IONO_NORTH_EFlux, IONO_NORTH_Ave_E,      &
-        !     IONO_NORTH_Theta, IONO_NORTH_Psi,        &
-        !     IONO_nTheta, IONO_nPsi,                  &
-        !     dTheta_North, dPsi_North,                &
-        !     conductance_model, f107_flux)
-
         ! Add in ionospheric currents after the conductances
         ! are calculated
         IONO_NORTH_JR = IONO_NORTH_JR - Iono_North_Tgcm_Jr
@@ -145,26 +126,6 @@ subroutine IE_solve
         ! Obtain conductance:
         call generate_conductance('south')
 
-        !call FACs_to_fluxes(conductance_model, iBlock)
-        !
-        !call ionosphere_conductance(IONO_SOUTH_Sigma0,               &
-        !     IONO_SOUTH_SigmaH, &
-        !     IONO_SOUTH_SigmaP, &
-        !     IONO_SOUTH_SigmaThTh, &
-        !     IONO_SOUTH_SigmaThPs, &
-        !     IONO_SOUTH_SigmaPsPs, &
-        !     IONO_SOUTH_dSigmaThTh_dTheta, &
-        !     IONO_SOUTH_dSigmaThPs_dTheta, &
-        !     IONO_SOUTH_dSigmaPsPs_dTheta, &
-        !     IONO_SOUTH_dSigmaThTh_dPsi, &
-        !     IONO_SOUTH_dSigmaThPs_dPsi, &
-        !     IONO_SOUTH_dSigmaPsPs_dPsi, &
-        !     IONO_SOUTH_EFlux, IONO_SOUTH_Ave_E,  &
-        !     IONO_SOUTH_Theta, IONO_SOUTH_Psi, &
-        !     IONO_nTheta, IONO_nPsi,                  &
-        !     dTheta_South, dPsi_South,                &
-        !     conductance_model, f107_flux)
-
         ! Add in ionospheric currents after the conductances
         ! are calculated
         IONO_SOUTH_JR = IONO_SOUTH_JR - Iono_South_Tgcm_Jr
@@ -186,7 +147,7 @@ subroutine IE_solve
 
         if(DoTest)then
            call write_prefix;
-           write(*,'(a,8.3,a)') "Southern Cross Polar Cap Potential=",&
+           write(*,'(a,f8.3,a)') "Southern Cross Polar Cap Potential=",&
                 cpcp_south," kV"
         end if
 
