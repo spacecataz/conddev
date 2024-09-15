@@ -19,11 +19,8 @@ Module ModConductance
   ! Logicals to control what conductance sources are used.
   logical :: DoUseEuvCond=.false., DoUseAurora=.false.
 
-  ! Name of auroral model to use, defaults to 'FAC2FLUX'
-  character(len=8) :: NameAuroraMod = 'FAC2FLUX'
-
-  ! Name of empirical conductance model, if used:
-  character(len=4) :: NameEmpModel='RLM5' ! Legacy iModel=3,4,5 or CMEE
+  ! Name of auroral model to use, defaults to 'RLM5'
+  character(len=8) :: NameAuroraMod = 'RLM5'
 
   ! Background & constant conductance values:
   real :: f107_flux=150, SigmaHalConst=0, SigmaPedConst=0, &
@@ -132,25 +129,29 @@ contains
          call calc_euv_cond(NameHemiIn, SigmaHalEuv_II, SigmaPedEuv_II)
 
     ! Add aurora conductances.  Aurora models obtain/calculate average energy
-    ! and energy flux for diffuse, discrete, and broadband (all default to
-    ! zero).
+    ! and energy flux for diffuse, discrete, and broadband precipitation
+    ! (all default to zero).
     if (DoUseAurora) then
        ! Obtain average energy and energy flux values based on
        ! selected aurora model:
-       select case (NameAuroraMod)
-       case('FAC2FLUX')
-          ! RLM/CMEE fills the diffuse ONLY
-          call facs_to_fluxes(NameEmpModel, NameHemiIn, &
+       select case(trim(NameAuroraMod))
+       case('RLM3', 'RLM4', 'RLM5', 'CMEE')!'FAC2FLUX')
+          ! RLM-family of conductance models, including the
+          ! Conductance Model for Extreme Events:
+          ! RLM/CMEE fills the mono-energetic array ONLY
+          call facs_to_fluxes(trim(NameAuroraMod), NameHemiIn, &
                AvgEMono_II, EfluxMono_II)
+          ! Convert average energy/energy flux into conductance:
+          call flux_to_sigma(IONO_nTheta,IONO_nPsi, AvgEMono_II, &
+               1000.*EFluxMono_II, SigmaHalAur_II, SigmaPedAur_II)
+
        case('MAGNIT')
           !call magnit_fluxes(NameHemiIn)
+
        case default
           call CON_stop(NameSub//': Unrecognized auroral model - ' &
                //NameAuroraMod)
        end select
-
-       ! use robinson here to fill aurora conductance.
-       ! SigmaHalAur = ConvertFluxSigma(AvgEDiff, EfluxDiff, 'robinson') + gallrich(AvgEIdif,
     end if
 
     ! Sum conductance into the correct hemisphere.
@@ -163,18 +164,24 @@ contains
        ! Add broadband conductance:
        IONO_NORTH_SigmaH = IONO_NORTH_SigmaH + SigmaHalBbnd_II
        IONO_NORTH_SigmaP = IONO_NORTH_SigmaP + SigmaPedBbnd_II
+       ! Store Average energy and energy flux:
+       IONO_NORTH_EFlux = EfluxMono_II
+       IONO_NORTH_Ave_E = AvgEMono_II
        ! Place values into convenience arrays to calculate derivatives:
        SigmaH = IONO_NORTH_SigmaH
        sigmaP = IONO_NORTH_SigmaP
     else
        IONO_SOUTH_Sigma0 = SigmaPar
        IONO_SOUTH_SigmaH = sqrt(SigmaHalConst**2 + SigmaHalEuv_II**2 + &
-            (2.*StarLightCond)**2)
+            (2.*StarLightCond)**2 + SigmaHalAur_II**2)
        IONO_SOUTH_SigmaP = sqrt(SigmaPedConst**2 + SigmaPedEuv_II**2 + &
-            StarLightCond **2)
+            StarLightCond**2 + SigmaPedAur_II**2)
        ! Add broadband conductance:
        IONO_SOUTH_SigmaH = IONO_SOUTH_SigmaH + SigmaHalBbnd_II
        IONO_SOUTH_SigmaP = IONO_SOUTH_SigmaP + SigmaPedBbnd_II
+       ! Store Average energy and energy flux:
+       IONO_SOUTH_EFlux = EfluxMono_II
+       IONO_SOUTH_Ave_E = AvgEMono_II
        ! Place values into convenience arrays to calculate derivatives:
        SigmaH = IONO_SOUTH_SigmaH
        sigmaP = IONO_SOUTH_SigmaP
@@ -434,6 +441,14 @@ contains
     logical :: DoTest, DoTestMe
     character(len=*), parameter :: NameSub='imodel_legacy'
     !------------------------------------------------------------------------
+    call CON_set_do_test(NameSub, DoTest, DoTestMe)
+
+    if(DoTestMe) then
+       write(*,*)NameSub // ' Debug Information:'
+       write(*,*)'   iModelIn = ', iModelIn
+       write(*,*)'   StarLightIn, PolarCapIn =', StarLightIn, PolarCapIn
+    end if
+
     select case(iModelIn)
        case(0) ! Constant conductance, Pedersen only; no background
           SigmaPedConst = StarLightIn
@@ -446,27 +461,31 @@ contains
           StarLightCond  = 0.0
           PolarCapPedCond= 0.0
        case(2) ! Constant conductance + dayside conductance:
-          SigmaHalConst = PolarCapIn
+          ! Note that in the legacy model, StarLightPedConductance is
+          ! used to set constant hall and ped; hall is multiplied by 2.
+          StarLightCond  = 0.0
+          PolarCapPedCond= 0.0
+          SigmaHalConst = StarLightIn * 2.0
           SigmaPedConst = StarLightIn
           DoUseEuvCond = .true.
           f107_flux = f10In
        case(3)
           DoUseAurora     = .true.
-          NameEmpModel    = 'RLM3'
+          NameAuroraMod   = 'RLM3'
           DoUseEuvCond    = .true.
           StarLightCond   = StarLightIn
           PolarCapPedCond = PolarCapIn
           f107_flux       = f10In
        case(4)
           DoUseAurora     = .true.
-          NameEmpModel    = 'RLM4'
+          NameAuroraMod   = 'RLM4'
           DoUseEuvCond    = .true.
           StarLightCond   = StarLightIn
           PolarCapPedCond = PolarCapIn
           f107_flux       = f10In
        case(5)
           DoUseAurora     = .true.
-          NameEmpModel    = 'RLM5'
+          NameAuroraMod   = 'RLM5'
           DoUseEuvCond    = .true.
           StarLightCond   = StarLightIn
           PolarCapPedCond = PolarCapIn
@@ -481,8 +500,60 @@ contains
           call CON_stop(NameSub//': Invalid imodel value')
     end select
 
-  end subroutine imodel_legacy
-  !===========================================================================
+    if(DoTestMe) then
+       write(*,*)'   SigmaHalConst, SigmaPedConst = ', &
+            SigmaHalConst, SigmaPedConst
+       write(*,*)'   StarLightCond, PolarCapPedCond = ', &
+            StarLightCond, PolarCapPedCond
+       write(*,*)'   F10.7 Flux = ', f107_flux
+       write(*,*)'   DoUseEuvCond = ', DoUseAurora
+       write(*,*)'   DoUseAurora = ', DoUseAurora
+       write(*,*)'   NameAuroraModel = ', NameAuroraMod
+       write(*,*)'   iModelIn = ', iModelIn
+    end if
 
+  end subroutine imodel_legacy
+
+  !===========================================================================
+  subroutine flux_to_sigma(nLatIn, nLonIn, AveEIn_II, eFluxIn_II, &
+       SigmaHOut_II, SigmaPOut_II, NameModelIn)
+
+    ! Convert average energy and energy flux to conductance using one of
+    ! several empirical relationships. Both average energy and energy flux
+    ! should be given in units of keV and mW/m2 (ergs/cm2), respectively,
+    ! on 2D lat/lon grids.
+    !
+    !    Empirical models implemented:
+    !    ----------------------------------
+    !    robi :: Robinson et al., 1987 (electrons)
+    !    gala :: Galand and Richmond, 2001 (ions)
+    !    kaep :: Kaeppler et al., 2015 (electrons)
+
+    ! Arguments:
+    integer, intent(in) :: nLatIn, nLonIn
+    real, intent(in),  dimension(nLatIn, nLonIn) :: AveEIn_II, eFluxIn_II
+    real, intent(out), dimension(nLatIn, nLonIn) :: SigmaHOut_II, SigmaPOut_II
+    character(len=4), intent(in), optional :: NameModelIn
+
+    ! Local variables:
+    character(len=4) :: NameModel='robi'
+
+    logical :: DoTest, DoTestMe
+    character(len=*), parameter :: NameSub='imodel_legacy'
+    !------------------------------------------------------------------------
+    ! Set up defaults: ions and Robinson et al. 1987
+    if (present(NameModelIn))    NameModel = NameModelIn
+
+    select case(NameModel)
+    case('robi')
+       SigmaPOut_II = sqrt(eFluxIn_II) * (40. * AveEIn_II) &
+           / (16. + AveEIn_II**2)
+       SigmaHOut_II = 0.45 * SigmaPOut_II * AveEIn_II**0.85
+    case('gala')
+    case('kaep')
+    end select
+
+   end subroutine flux_to_sigma
+   !===========================================================================
 
 end Module ModConductance
