@@ -10,7 +10,7 @@
 ! Mukhopadhyay et al., 2020.
 
 Module ModIeRlm
-  
+
   implicit none
   save
 
@@ -42,14 +42,14 @@ Module ModIeRlm
   integer :: i_cond_nmlts=-1, i_cond_nlats=-1
   real, allocatable :: cond_mlts(:)
   real, allocatable :: cond_lats(:)
-  
+
 contains
 
   !===========================================================================
   subroutine load_conductances()
 
     use ModIoUnit, ONLY: UnitTmp_
-    use ModUtilities, ONLY: open_file, close_file
+    use ModUtilities, ONLY: open_file, close_file, CON_set_do_test, CON_stop
 
     ! Local variables:
     character (len=100) :: Line
@@ -255,21 +255,21 @@ contains
     use IE_ModIo,       ONLY: NameIonoDir
     use ModIoUnit,      ONLY: UnitTMP_
     use IE_ModMain,     ONLY: Time_Array, nSolve
-    
+
     implicit none
-    
+
     ! Inputs:
     real, dimension(1:IONO_nTheta, 1:IONO_nPsi), intent(in) :: &
          Current_in, Theta_in, Psi_in
-    
-    ! Outputs: 
+
+    ! Outputs:
     real, dimension(1:IONO_nPsi), intent(out) :: &
          Loc_of_Oval, Width_of_Oval, Strength_of_Oval
-    
-    ! Working Variables: 
+
+    ! Working Variables:
     real, dimension(1:IONO_nTheta, 1:IONO_nPsi) :: &
          Current, Theta, Psi
-    
+
     real, dimension(1:8) :: &
          max_fac, max_fac_colat, width, J_Save
 
@@ -277,9 +277,9 @@ contains
     real    :: day_fac, dusk_fac, midnight_fac, dawn_fac
     real    :: noon_mid, dusk_dawn, day_strength, night_strength
     real    :: mean_colat, dev_colat, sumFAC, Night_Width, Day_Width
-    
+
     integer :: i, j, n, nloc, dJ, J_Start, J_End
-    
+
     ! Testing & output variables:
     character(len=100), save    :: NameFile, StringFormat
     character(len=*), parameter :: NameSub = 'Determine_Oval_Characteristics'
@@ -305,10 +305,10 @@ contains
        enddo
        north   = .false.
     endif
-    
+
     ! Start oval determination:
      dJ = IONO_nPsi/9
-     
+
      do n = 1, 8
         ! figure out location of auroral oval:
         ! Let's start a little ways away from the pole...
@@ -328,7 +328,7 @@ contains
               endif
            enddo
         enddo
-        
+
         ! figure out width
         width(n) = 0.0
         j = J_Save(n)
@@ -347,16 +347,16 @@ contains
      dusk_colat = (max_fac_colat(2) + max_fac_colat(3))/2.0
      midnight_colat = (max_fac_colat(4) + max_fac_colat(5))/2.0
      dawn_colat = (max_fac_colat(6) + max_fac_colat(7))/2.0
-     
+
      day_fac = (max_fac(1) + max_fac(8))/2.0
      dusk_fac = (max_fac(2) + max_fac(3))/2.0
      midnight_fac = (max_fac(4) + max_fac(5))/2.0
      dawn_fac = (max_fac(6) + max_fac(7))/2.0
-     
+
      night_width = 0.0
      sumFAC = 0.0
      mean_colat = 0.0
-     
+
      do n=1,8
         night_width = night_width + width(n) * max_fac(n)
         mean_colat = mean_colat + max_fac_colat(n) * max_fac(n)
@@ -368,7 +368,7 @@ contains
 
      if (Night_Width > 6.0*cDegToRad) Night_Width=6.0*cDegToRad
      Day_Width = max(Night_Width/2.0,1.0*cDegToRad)
-     
+
      if (mean_colat < 15.0*cDegToRad) then
         mean_colat = 15.0*cDegToRad
         dev_colat = 0.0
@@ -378,7 +378,7 @@ contains
         dev_colat = ((day_colat - mean_colat) * day_fac - &
              (midnight_colat - mean_colat) * midnight_fac) / &
              (day_fac + midnight_fac)
-        
+
         ! Restrict auroral location a little bit:
         if (abs(dev_colat) > mean_colat/2.0) then
            dev_colat = dev_colat*mean_colat/2.0/abs(dev_colat)
@@ -398,7 +398,7 @@ contains
 
      ! For testing purposes, write oval info to file.
      if(.not.DoTestMe .or. .not.north) return
-     
+
      if(IsFirstWrite)then
         ! Open file:
         write(NameFile,'(a,i8.8,a)')trim(NameIonoDir)//'aurora_n',nSolve,'.txt'
@@ -421,8 +421,8 @@ contains
      ! Write record and close.
      write(UnitTmp_, StringFormat) Time_Array(1:7), Loc_of_oval(:)*cRadToDeg
      close(UnitTmp_)
-        
-  end subroutine Determine_Oval_Characteristics  
+
+  end subroutine Determine_Oval_Characteristics
   !===========================================================================
 
 end Module ModIeRlm
