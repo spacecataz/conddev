@@ -15,7 +15,7 @@ subroutine create_auroral_oval(currentIn, thetaIn, psiIn, &
   use IE_ModIo,      ONLY: NameIonoDir
   use ModIeRlm,      ONLY: DoOvalShift, DoFitCircle
   use IE_ModMain,    ONLY: Time_Array, nSolve
-  use ModIoUnit,     ONLY: UnitTmp_
+  use ModIoUnit,     ONLY: UnitTMP_
   use ModUtilities,  ONLY: open_file, close_file, CON_set_do_test
 
   implicit none

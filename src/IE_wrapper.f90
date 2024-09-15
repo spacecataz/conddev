@@ -105,7 +105,7 @@ contains
       use ModFiles
       use ModConductance, ONLY: DoUseEuvCond, f107_flux, &
            PolarCapPedCond, StarLightCond, SigmaHalConst, SigmaPedConst, &
-           imodel_legacy
+           imodel_legacy, DoUseAurora, NameAuroraMod
       use ModIeRlm, ONLY: UseOval, UseNewOval, DoOvalShift, &
            UseSubOvalCond, DoFitCircle, FactorHallCMEE, FactorPedCMEE, &
            NameHalFile, NamePedFile, LatNoConductanceSI, UseCMEEFitting
@@ -129,7 +129,6 @@ contains
       !------------------------------------------------------------------------
       select case(TypeAction)
       case('CHECK')
-         if(IsUninitialized)call set_defaults
          IsUninitialized=.false.
 
          ! We should check and correct parameters here
@@ -140,7 +139,6 @@ contains
          if(iProc==0)write(*,*) NameSub,': READ iSession =',i_session_read(),&
               ' iLine=',i_line_read(),' nLine =',n_line_read()
 
-         if(IsUninitialized)call set_defaults
          IsUninitialized=.false.
       end select
 
@@ -152,6 +150,8 @@ contains
          select case(NameCommand)
          case("#STRICT")
             call read_var('UseStrict',UseStrict)
+
+         ! I/O-related params
          case("#IONODIR")
             call read_var("NameIonoDir",NameIonoDir)
             call fix_dir_name(NameIonoDIr)
@@ -204,6 +204,12 @@ contains
             call read_var('IsPlotName_e',IsPlotName_e)
          case("#SAVELOGNAME")
             call read_var('IsLogName_e',IsLogName_e)
+         case("#SAVELOGFILE")
+            call read_var('DoSaveLogfile',DoSaveLogfile)
+            if(DoSaveLogfile)then
+               if(iProc==0)call check_dir(NameIonoDir)
+            endif
+
          ! Conductance related params:
          case('#SOLAREUV')
             call read_var('DoUseEuvCond', DoUseEuvCond)
@@ -214,28 +220,40 @@ contains
          case('#BACKGROUNDCOND')
             call read_var('StarLightCond', StarLightCond)
             call read_var('PolarCapPedCond', PolarCapPedCond)
-         ! This is a LEGACY command and CANDIDATE FOR REMOVAL.
-         case("#IONOSPHERE")
-            ! Read LEGACY variables and store locally.
-            call read_var('iConductanceModel', iModLegacy)
-            call read_var('UseFullCurrent' ,   UseFullCurrent)
-            call read_var('UseFakeRegion2' ,   UseFakeRegion2)
-            call read_var('F10.7 Flux',        f10Legacy)
-            call read_var('StarLightPedConductance', StarLightLegacy)
-            call read_var('PolarCapPedConductance',  PolarCapLegacy)
-            ! Set options as a function of iModel:
-            call imodel_legacy(iModLegacy, f10Legacy, &
-                 StarLightLegacy, PolarCapLegacy)
-         case('#USECMEE')
+         case('#AURORA')
+            call read_var('DoUseAurora', DoUseAurora)
+            call read_var('NameAuroraMod', NameAuroraMod)
+         case("#CONDUCTANCEFILES")
+            call read_var('NameFileHall',     NameHalFile)
+            call read_var('NameFilePedersen', NamePedFile)
+         case('#USECMEEFIT')
             call read_var('UseCMEEFitting', UseCMEEFitting)
             if (UseCMEEFitting) then
                call read_var('LatNoConductanceSI', LatNoConductanceSI)
                call read_var('FactorHallCMEE',     FactorHallCMEE)
                call read_var('FactorPedCMEE',      FactorPedCMEE)
             endif
-         case("#CONDUCTANCEFILES")
-            call read_var('NameFileHall',     NameHalFile)
-            call read_var('NameFilePedersen', NamePedFile)
+         case("#AURORALOVAL")
+            call read_var('UseOval', UseOval)
+            if(UseOval)then
+               call read_var('UseOvalShift',          DoOvalShift)
+               call read_var('UseSubOvalConductance', UseSubOvalCond)
+               call read_var('UseAdvancedOval',       UseNewOval)
+               if(UseNewOval) call read_var('DoFitCircle', DoFitCircle)
+            end if
+         case("#RLMCONDUCTANCE")
+            call read_var('LatNoConductanceSI', LatNoConductanceSI)
+            call read_var('OvalWidthFactor',    OvalWidthFactor)
+            call read_var('OvalStrengthFactor', OvalStrengthFactor)
+            call read_var('ConductanceFactor',  CondFactor)
+            if (trim(NameAuroraMod).eq.'RLM3') then
+               write(*,'(a,i4,a)')NameSub//' IE_ERROR at line ',i_line_read(),&
+                    ' command '//trim(NameCommand)// &
+                    ' can only be used with conductance model 4 or 5'
+               if(UseStrict)call CON_stop('Correct PARAM.in!')
+            end if
+
+         ! Physics & solver related params
          case("#IM")
             call read_var('TypeImCouple',TypeImCouple)
             call lower_case(TypeImCouple)
@@ -316,40 +334,25 @@ contains
 
             UseGridBasedIE = .false.
 
-         case("#SAVELOGFILE")
-            call read_var('DoSaveLogfile',DoSaveLogfile)
-            if(DoSaveLogfile)then
-               if(iProc==0)call check_dir(NameIonoDir)
-            endif
-
-         case("#AURORALOVAL")
-            call read_var('UseOval', UseOval)
-            if(UseOval)then
-               call read_var('UseOvalShift',          DoOvalShift)
-               call read_var('UseSubOvalConductance', UseSubOvalCond)
-               call read_var('UseAdvancedOval',       UseNewOval)
-               if(UseNewOval) call read_var('DoFitCircle', DoFitCircle)
-            end if
-
-         case("#CONDUCTANCE")
-            call read_var('OvalWidthFactor',   OvalWidthFactor)
-            call read_var('OvalStrengthFactor',OvalStrengthFactor)
-            call read_var('ConductanceFactor', CondFactor)
-            if ( (conductance_model/=4).and.(conductance_model/=5) ) then
-               write(*,'(a,i4,a)')NameSub//' IE_ERROR at line ',i_line_read(),&
-                    ' command '//trim(NameCommand)// &
-                    ' can only be used with conductance model 4 or 5'
-               if(UseStrict)call CON_stop('Correct PARAM.in!')
-            end if
-
-         case("#MAGNETOMETER")
-            write(*,*)'IE_WARNING: #MAGNETOMETER COMMAND NOW GM-ONLY.'
-
-         case("#GEOMAGINDICES")
-            write(*,*)'IE_WARNING: #GEOMAGINDICES COMMAND NOW GM-ONLY.'
-
          case("#RESTART")
             call read_var('DoRestart', DoRestart)
+
+         ! The following are LEGACY PARAMS and CANDIDATES FOR REMOVAL.
+         case("#IONOSPHERE")
+            ! Read LEGACY variables and store locally.
+            call read_var('iConductanceModel', iModLegacy)
+            call read_var('UseFullCurrent' ,   UseFullCurrent)
+            call read_var('UseFakeRegion2' ,   UseFakeRegion2)
+            call read_var('F10.7 Flux',        f10Legacy)
+            call read_var('StarLightPedConductance', StarLightLegacy)
+            call read_var('PolarCapPedConductance',  PolarCapLegacy)
+            ! Set options as a function of iModel:
+            call imodel_legacy(iModLegacy, f10Legacy, &
+                 StarLightLegacy, PolarCapLegacy)
+         case("#MAGNETOMETER")
+            write(*,*)'IE_WARNING: #MAGNETOMETER COMMAND NOW GM-ONLY.'
+         case("#GEOMAGINDICES")
+            write(*,*)'IE_WARNING: #GEOMAGINDICES COMMAND NOW GM-ONLY.'
 
          case default
             if(iProc==0) then
@@ -823,13 +826,11 @@ contains
   !============================================================================
   subroutine IE_put_from_ua(Buffer_IIBV, nMLTs, nLats, nVarIn, NameVarUaIn_V)
 
-    use IE_ModMain, ONLY: &
-         IsNewInput, DoCoupleUaCurrent
+    use IE_ModMain,     ONLY: IsNewInput, DoCoupleUaCurrent
     use ModConductance, ONLY: StarLightCond
-
     use ModIonosphere
     use ModConst
-    use ModUtilities, ONLY: check_allocate
+    use ModUtilities,   ONLY: check_allocate
 
     save
 
@@ -1233,7 +1234,8 @@ contains
     use IE_ModMain,     ONLY: time_accurate, time_simulation, ThetaTilt
     use IE_ModIo,       ONLY: dt_output, t_output_last
     use ModConductance, ONLY: NameAuroraMod
-    use ModIeRlm,       ONLY: load_conductances
+    use ModIeRlm,       ONLY: load_conductances, UseCMEEFitting, &
+         NameHalFile, NamePedFile
     use ModProcIE
 
     integer,  intent(in) :: iSession      ! session number (starting from 1)
@@ -1249,9 +1251,18 @@ contains
     call CON_set_do_test(NameSub, DoTest, DoTestMe)
 
     if(IsUninitialized)then
+       ! Set configurations based on selected auroral models:
+       if (trim(NameAuroraMod).eq.'CMEE') then
+          ! Switch coefficient input files to CMEE:
+          UseCMEEFitting = .true.
+          NameHalFile = 'cmee_hal_coeffs.dat'
+          NamePedFile = 'cmee_ped_coeffs.dat'
+       end if
+
        call init_mod_ionosphere
        ! Read empirical conductance values from files as necessary
-       if(NameAuroraMod .eq. 'FAC2FLUX') call load_conductances()
+       if((index(NameAuroraMod,'RLM')>0).or.(index(NameAuroraMod,'CMEE')>0)) &
+            call load_conductances()
        call ionosphere_fine_grid
        call ionosphere_init
 
@@ -1347,10 +1358,11 @@ contains
 
     use ModProcIE
     use IE_ModMain
-    use IE_ModIo, ONLY: DoRestart, iUnitOut, StringPrefix
-    use CON_physics, ONLY: get_time, get_axes, time_real_to_int
+    use IE_ModIo,       ONLY: DoRestart, iUnitOut, StringPrefix
+    use CON_physics,    ONLY: get_time, get_axes, time_real_to_int
     use ModLookupTable, ONLY: i_lookup_table, init_lookup_table, &
          interpolate_lookup_table
+    use ModConductance, ONLY: f107_flux
     use ModKind
 
     real, intent(inout) :: tSimulation   ! current time of component
