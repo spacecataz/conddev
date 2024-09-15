@@ -126,11 +126,10 @@ subroutine ionosphere_fine_grid
      ! Auroral conducatnce settings:
      write(iUnitOut,'(5x, a,l)')      "Use Auroral Conductance = ", DoUseAurora
      if(DoUseAurora)then
-        write(iUnitOut,'(5x,a,a)') " Selected auroral model = ", NameAuroraMod
+        write(iUnitOut,'(5x,a,a)') "Selected auroral model = ", NameAuroraMod
         ! Echo empirical settings:
-        select case(NameAuroraMod)
-        case('FAC2FLUX')
-           write(iUnitOut,'(5x,a,a)')'Selected empirical auroral model = ', NameEmpModel
+        select case(trim(NameAuroraMod))
+        case('RLM3', 'RLM4', 'RLM5', 'CMEE')
            write(iUnitOut,'(5x,a,l)')'UseCMEEFitting = ', UseCMEEFitting
            write(iUnitOut,'(5x,a,a)')'Hall Coeff. File = ', trim(NameHalFile)
            write(iUnitOut,'(5x,a,a)')'Ped. Coeff. File = ', trim(NamePedFile)
@@ -277,9 +276,6 @@ subroutine ionosphere_init
 
   IONO_NORTH_TGCM_JR = 0.00                                !^CFG IF TIEGCM
   IONO_SOUTH_TGCM_JR = 0.00                                !^CFG IF TIEGCM
-
-  SAVE_NORTH_SigmaH = 0.00
-  SAVE_SOUTH_SigmaH = 0.00
 
   IONO_NORTH_EFlux = 0.00
   IONO_SOUTH_EFlux = 0.00
