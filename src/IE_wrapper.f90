@@ -222,7 +222,7 @@ contains
             call read_var('PolarCapPedCond', PolarCapPedCond)
          case('#AURORA')
             call read_var('DoUseAurora', DoUseAurora)
-            call read_var('NameAuroraMod', NameAuroraMod)
+            if(DoUseAurora) call read_var('NameAuroraMod', NameAuroraMod)
          case("#CONDUCTANCEFILES")
             call read_var('NameFileHall',     NameHalFile)
             call read_var('NameFilePedersen', NamePedFile)
