@@ -26,7 +26,7 @@ subroutine ionosphere(iter, iAction)
   real :: f107
 
   logical :: DoTest, DoTestMe
-  character(len=*) :: NameSub = 'ionosphere'
+  character(len=*), parameter :: NameSub = 'ionosphere'
   !----------------------------------------------------------------------------
   call CON_set_do_test(NameSub, DoTest, DoTestMe)
   if(DoTest)write(*,*)'Ionosphere starting with action, me=',iAction, iProc
