@@ -161,7 +161,7 @@ T       DoUseEuvCond
 
 Turn on and configure the solar extreme ultraviolet (EUV) source of
 ionospheric conductance. If DoUseEuvCond is set to True, the value for
-F10.7 flux is read as well.
+F10.7 flux is read as well. Default values are shown above.
 
 If F107Flux is set to a positive value, it sets the F10.7 solar radio flux
 value (which controls dayside EUV-driven conductance) to a constant.
@@ -183,8 +183,37 @@ the Param/f107.txt table automatically.
 </command>
 
 <command name="AURORA">
-  <parameter name="StarLightCond" type="real" min="0" default="0.25"/>
-  <parameter name="PolarCapPedCond" type="real" min="0" default="0.25"/>
+  <parameter name="DoUseAurora" type="logical" default="T"/>
+  <if expr="$DoUseAurora">
+    <parameter name="NameAuroraMod" type="string" input="select">
+      <option name="Ridley Legacy Model vrs. 3" value="RLM3" />
+      <option name="Ridley Legacy Model vrs. 3" value="RLM4" />
+      <option name="Ridley Legacy Model vrs. 3" value="RLM5" />
+      <option name="Cond. Model for Extreme Events" value="CMEE" />
+    </parameter>
+  </if>
+#AURORA
+T               DoUseAurora
+RLM5            NameAurMod
+
+Turn on or off auroral source of ionospheric conductance and select auroral
+conductance model. Default values are shown.
+
+Aurora precipitation includes diffuse, discrete, and wave-driven conductance
+from both ion and electron precipitation. Not all auroral models include all
+physical processes.
+
+The following models are currently implemented:
+\begin{itemize}
+\item \textbf{RLM3}: The Ridley Legacy Model with a basic auroral oval
+intensification factor.
+\item \textbf{RLM4}: The Ridley Legacy Model, where FACs set conductance
+empirically with an intensification along an oval fitted to upward FACs.
+\item \textbf{RLM5}: Similar to RLM4 but with an advanced, narrower auroral
+oval intensification pattern.
+\item \textbf{CMEE}: The Conductance Model for Extreme Events - similar to
+RLM5 but with an empirical fitting based on extreme events.
+\end{itemize}
 
 </command>
 
@@ -428,7 +457,7 @@ MLT).
 Examples of the required format can be found in Ridley_serial/input/.
 </command>
 
-<command name="USECMEE">
+<command name="USECMEEFIT">
   <parameter name="UseCMEEFitting" type="logical" default="F"/>
   <if expr="$UseCMEEFitting">
     <parameter name="LatNoConductanceSI"  type="real" default="45"/>
@@ -436,7 +465,7 @@ Examples of the required format can be found in Ridley_serial/input/.
     <parameter name="FactorPedCMEE"       type="real" default="5"/>
   </if>
 
-#USECMEE
+#USECMEEFIT
 T             UseCMEEFitting (rest of parameters read if true)
 45            LatNoConductanceSI (default)
 7.5           FactorHallCMEE (default)
