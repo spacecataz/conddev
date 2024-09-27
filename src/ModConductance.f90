@@ -27,6 +27,8 @@ Module ModConductance
        StarLightCond=0.25, & !replaces starlightpedconductance
        PolarCapPedCond=0.25  !replaces PolarCapPedConductance
 
+  ! GM-IE coupling variables.
+  logical :: DoUseGmPe = .false.  ! Couple electron pressure/entropy?
   ! Floor values for GM density and pressure, SI units:
   real, parameter :: GmRhoFloor = 1E-21, GmPFloor = 1E-13
 

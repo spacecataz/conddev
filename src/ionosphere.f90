@@ -78,6 +78,7 @@ subroutine ionosphere_fine_grid
   use ModIeRlm
   use CON_planet, ONLY: get_planet, lNamePlanet
   use ModNumConst, ONLY: cHalfPi, cTwoPi
+  use ModMagnit, ONLY: print_magnit_config
   implicit none
 
   integer :: i,j
@@ -141,12 +142,7 @@ subroutine ionosphere_fine_grid
            write(iUnitOut,'(10x,a,l)')'UseSubOvalCond=',UseSubOvalCond
            write(iUnitOut,'(10x,a,l)')'DoFitCircle=',   DoFitCircle
         case('MAGNIT')
-           write(iUnitOut,'(a)') "MAGNIT Physics-based Aurora"
-           write(iUnitOut,'(a)') "(Beta-testing Phase)"
-           write(*,*) '################## CAUTION ##################'
-           write(*,*) '(Beta Testing) The conductance calculations from MAGNIT are unstable.'
-           write(*,*) 'Please proceed with caution. For issues, please contact developers.'
-           write(*,*) '#############################################'
+           call print_magnit_config(iUnitOut)
         case default
         end select
 
