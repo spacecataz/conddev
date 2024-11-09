@@ -5,8 +5,8 @@
 module ModMagnit
 
   use ModConst, ONLY: cBoltzmann, cProtonMass, cElectronMass, cKToKEV, cKEVToK
+  use ModUtilities, ONLY: CON_stop, CON_set_do_test
   use ModIonosphere, ONLY: IONO_nTheta, IONO_nPsi
-  use ModConductance, ONLY: DoUseGmPe
 
   implicit none
   save
@@ -14,6 +14,9 @@ module ModMagnit
   ! Unit conversion factors and other constants:
   real, parameter :: cPtoKProt = cKToKEV/cBoltzmann
   real, parameter :: cPtoKElec = cElectronMass/cBoltzmann * cKToKEV
+
+  ! Configuration parameters:
+  logical :: DoUseGmPe=.false.  ! Use electron pressure?
 
   ! Diffuse auroral parameters
   real :: ratioPe = 1./6. ! Ratio of electron P to proton P.
@@ -32,10 +35,10 @@ module ModMagnit
 !     MulFac_Def = 5.0e19
 !     MulFac_ef = 0.2e7
 !     MulFac_ae = 1.0 / 1.0e11
-  MulFac_Dae = 1.0e22
-  MulFac_Def = 1.0e19
-  MulFac_ef = 0.3e6! * 1e03
-  MulFac_ae = 3.65e-12
+!  MulFac_Dae = 1.0e22
+!  MulFac_Def = 1.0e19
+!  MulFac_ef = 0.3e6! * 1e03
+!  MulFac_ae = 3.65e-12
 
   ! reminder: GmRhoFloor = 1E-21, GmPFloor = 1E-13
 
@@ -56,31 +59,38 @@ module ModMagnit
       write(iUnitIn,*) "Electron precip obtained directly from Pe."
     else
       write(iUnitIn,*) "Electron precip obtained from LT-flipped protons"
-      write(iUnitIn,'(a, 5.3f)') "Pe/P ratio set to ", ratioPe
+      write(iUnitIn,'(a, f5.3)') "Pe/P ratio set to ", ratioPe
     end if
 
   end subroutine print_magnit_config
 
   !============================================================================
-  subroutine magnit_gen_fluxes(NameHemiIn)
+  subroutine magnit_gen_fluxes(NameHemiIn, &
+      AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
+      EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
+
+    use ModConst, ONLY: cPi, cKEV
+    use ModIonosphere, ONLY: IONO_North_p, IONO_North_rho, &
+        IONO_South_p, IONO_South_rho
+
     ! Given magnetospheric density, pressure, and FACs, calculate diffuse and
     ! monoenergetic precipitating fluxes.
-    ! Fill the following arrays for use by ModConductance:
-    ! SigmaPedAur_II, SigmaHalAur_II, SigmaPedBbnd_II, SigmaHalBbnd_II
 
     character(len=*), intent(in) :: NameHemiIn
-
-    ! Set arrays to hold magnetospheric values.
-    real, dimension(IONO_nTheta, IONO_nPsi) :: &
-        MagP_II, MagNp_II, MagPe_II, MagNe_II
 
     ! Set arrays to hold precip values. Magnetospheric pressure and density
     ! from GM (SI units), Average Energy and Energy Flux (units of KeV and
     ! mW/m2 aka ergs/cm2, respectively) for each precip type.
-    real, dimension(IONO_nTheta, IONO_nPsi) :: &
-        AveEDiffe_II, AveEDiffp_II, AveEMono_II, AveEBbnd_II, &
-        EfluxDiffe_II, EfluxDiffp_II, EfluxMono_II, EfluxBbnd_II
+    real, intent(out), dimension(IONO_nTheta, IONO_nPsi) :: &
+        AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
+        EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II
 
+    ! Set arrays to hold magnetospheric values.
+    real, dimension(IONO_nTheta, IONO_nPsi) :: &
+        MagP_II, MagNp_II, MagPe_II, MagNe_II, MagRho_II, &
+        NfluxDiffe_II, NfluxDiffi_II
+
+    integer :: j
 
     ! Debug variables:
     logical :: DoTestMe, DoTest
@@ -91,7 +101,7 @@ module ModMagnit
          write(*,*)'IE: '//NameSub//' called for hemisphere='//NameHemiIn
 
     ! Set values based on hemisphere. Calculate number density.
-    if(NameHemIn == 'north')then
+    if(NameHemiIn == 'north')then
         MagP_II = iono_north_p
         MagNp_II = iono_north_rho / cProtonMass
     else if (NameHemiIn.eq.'south')then
@@ -116,25 +126,26 @@ module ModMagnit
     end if
 
     ! Calculate diffuse precipitation: protons.
-    AveEDiffp  = MagP_II / (MagNp_II * cKEV)  ! T = P/nk in keV
-    NfluxDiffp = ConeNfluxDifp * MagNp_II * (cKEV * AveEDiffp)**0.5 / &
-                 sqrt(2 * cPi * cProtonMass)  ! units of mW/m2 or ergs/cm2
-    EfluxDiffp = 2000 * ConeEfluxDifp * MagNp_II * (cKEV * AveEDiffp)**1.5 / &
-                 sqrt(2 * cPi * cProtonMass)  ! units of mW/m2 or ergs/cm2
+    AvgEDiffi_II  = MagP_II / (MagNp_II * cKEV)  ! T = P/nk in keV
+    NfluxDiffi_II = ConeNfluxDifp * MagNp_II * (cKEV * AvgEDiffi_II)**0.5 / &
+                    sqrt(2 * cPi * cProtonMass)  ! units of mW/m2 or ergs/cm2
+    ! units of mW/m2 or ergs/cm2
+    EfluxDiffi_II = 2000 * ConeEfluxDifp * MagNp_II * &
+                    (cKEV * AvgEDiffi_II)**1.5 / sqrt(2 * cPi * cProtonMass)
     ! Recalc to make consistent with ConeFactors
-    AveEDiffp = EfluxDiffp / NfluxDiffp
+    AvgEDiffi_II = EfluxDiffi_II / NfluxDiffi_II
 
     ! Calculate diffuse precipitation: electrons.
-    AveEDiffe  = MagPe_II / (MagNe_II * cKEV)  ! T = P/nk in keV
-    NfluxDiffe = ConeNfluxDife * MagNe_II * (cKEV * AveEDiffe)**0.5 / &
+    AvgEDiffe_II  = MagPe_II / (MagNe_II * cKEV)  ! T = P/nk in keV
+    NfluxDiffe_II = ConeNfluxDife * MagNe_II * (cKEV * AvgEDiffe_II)**0.5 / &
                  sqrt(2 * cPi * cElectronMass)  ! units of mW/m2 or ergs/cm2
-    EfluxDiffe = 2000 * ConeEfluxDife * MagNe_II * (cKEV * AveEDiffe)**1.5 / &
-                 sqrt(2 * cPi * cElectronMass)  ! units of mW/m2 or ergs/cm2
+    ! units of mW/m2 or ergs/cm2
+    EfluxDiffe_II = 2000 * ConeEfluxDife * MagNe_II * &
+                    (cKEV * AvgEDiffe_II)**1.5 / sqrt(2 * cPi * cElectronMass)
     ! Recalc to make consistent with ConeFactors
-    AveEDiffe = EfluxDiffe / NfluxDiffe
-
-    ! Fill appropriate arrays for IE/Ridley_serial calculations.
-    ! SigmaPedAur_II, SigmaHalAur_II, EfluxMono_II, AvgEMono_II
+    AvgEDiffe_II = EfluxDiffe_II / NfluxDiffe_II
 
   end subroutine magnit_gen_fluxes
   !============================================================================
+
+end module ModMagnit
