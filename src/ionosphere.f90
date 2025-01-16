@@ -26,7 +26,7 @@ subroutine ionosphere(iter, iAction)
   real :: f107
 
   logical :: DoTest, DoTestMe
-  character(len=*), parameter :: NameSub = 'ionosphere'
+  character(len=*), parameter:: NameSub = 'ionosphere'
   !----------------------------------------------------------------------------
   call CON_set_do_test(NameSub, DoTest, DoTestMe)
   if(DoTest)write(*,*)'Ionosphere starting with action, me=',iAction, iProc
@@ -78,13 +78,12 @@ subroutine ionosphere_fine_grid
   use ModIeRlm
   use CON_planet, ONLY: get_planet, lNamePlanet
   use ModNumConst, ONLY: cHalfPi, cTwoPi
-  use ModMagnit, ONLY: print_magnit_config
   implicit none
 
   integer :: i,j
   real :: dTheta_l, dPsi_l
   character(len=lNamePlanet) :: NamePlanet
-  character(len=*), parameter :: NameSub = 'ionosphere_fine_grid'
+  character(len=*), parameter:: NameSub = 'ionosphere_fine_grid'
   !----------------------------------------------------------------------------
   dTheta_l = cHalfPi/(IONO_nTheta-1)
   dPsi_l   = cTwoPi/(IONO_nPsi-1)
@@ -122,27 +121,31 @@ subroutine ionosphere_fine_grid
      write(iUnitOut,'(5x, a, f10.6)') "Background Star Light = ", StarLightCond
      write(iUnitOut,'(5x, a, f10.6)') "Background Polar Cap Ped. = ", PolarCapPedCond
      ! EUV conductance settings:
-     write(iUnitOut,'(5x, a,l)')      "Use EUV Cond = ", DoUseEuvCond
+     write(iUnitOut,'(5x, a,l1)')      "Use EUV Cond = ", DoUseEuvCond
      if(DoUseEuvCond) write(iUnitOut,'(5x, a,f10.6)') "F10.7 Flux = ", f107_flux
      ! Auroral conducatnce settings:
-     write(iUnitOut,'(5x, a,l)')      "Use Auroral Conductance = ", DoUseAurora
+     write(iUnitOut,'(5x, a,l1)')      "Use Auroral Conductance = ", DoUseAurora
      if(DoUseAurora)then
         write(iUnitOut,'(5x,a,a)') "Selected auroral model = ", NameAuroraMod
         ! Echo empirical settings:
         select case(trim(NameAuroraMod))
         case('RLM3', 'RLM4', 'RLM5', 'CMEE')
-           write(iUnitOut,'(5x,a,l)')'UseCMEEFitting = ', UseCMEEFitting
            write(iUnitOut,'(5x,a,a)')'Hall Coeff. File = ', trim(NameHalFile)
            write(iUnitOut,'(5x,a,a)')'Ped. Coeff. File = ', trim(NamePedFile)
            write(iUnitOut,'(5x,a,a)')'Oval fitting settings:'
            write(iUnitOut,'(5x,a)')'---------------------------'
-           write(iUnitOut,'(10x,a,l)')'UseOval=',       UseOval
-           write(iUnitOut,'(10x,a,l)')'UseNewOval=',    UseNewOval
-           write(iUnitOut,'(10x,a,l)')'DoOvalShift=',   DoOvalShift
-           write(iUnitOut,'(10x,a,l)')'UseSubOvalCond=',UseSubOvalCond
-           write(iUnitOut,'(10x,a,l)')'DoFitCircle=',   DoFitCircle
+           write(iUnitOut,'(10x,a,l1)')'UseOval=',       UseOval
+           write(iUnitOut,'(10x,a,l1)')'UseNewOval=',    UseNewOval
+           write(iUnitOut,'(10x,a,l1)')'DoOvalShift=',   DoOvalShift
+           write(iUnitOut,'(10x,a,l1)')'UseSubOvalCond=',UseSubOvalCond
+           write(iUnitOut,'(10x,a,l1)')'DoFitCircle=',   DoFitCircle
         case('MAGNIT')
-           call print_magnit_config(iUnitOut)
+           write(iUnitOut,'(a)') "MAGNIT Physics-based Aurora"
+           write(iUnitOut,'(a)') "(Beta-testing Phase)"
+           write(*,*) '################## CAUTION ##################'
+           write(*,*) '(Beta Testing) The conductance calculations from MAGNIT are unstable.'
+           write(*,*) 'Please proceed with caution. For issues, please contact developers.'
+           write(*,*) '#############################################'
         case default
         end select
 
@@ -535,7 +538,7 @@ subroutine ionosphere_write_output(iFile, iBlock)
 
   character(len=4) :: IO_ext
   character (len=23) :: textNandT
-  character(len=*), parameter :: NameSub = 'ionosphere_write_output'
+  character(len=*), parameter:: NameSub = 'ionosphere_write_output'
   !----------------------------------------------------------------------------
 
   variables = min_vars
@@ -651,24 +654,28 @@ subroutine ionosphere_write_output(iFile, iBlock)
            write(iUnit, '(I5,a)')  7, ' SigmaP [mhos]'
            write(iUnit, '(I5,a)')  8, ' E-Flux [W/m2]'
            write(iUnit, '(I5,a)')  9, ' Ave-E [keV]'
-           write(iUnit, '(I5,a)') 10, ' Jr [mA/m^2]'
-           write(iUnit, '(I5,a)') 11, ' Phi [kV]'
-           write(iUnit, '(I5,a)') 12, ' Ex [mV/m]'
-           write(iUnit, '(I5,a)') 13, ' Ey [mV/m]'
-           write(iUnit, '(I5,a)') 14, ' Ez [mV/m]'
-           write(iUnit, '(I5,a)') 15, ' Jx [microA/m2]'
-           write(iUnit, '(I5,a)') 16, ' Jy [microA/m2]'
-           write(iUnit, '(I5,a)') 17, ' Jz [microA/m2]'
-           write(iUnit, '(I5,a)') 18, ' Ux [km/s]'
-           write(iUnit, '(I5,a)') 19, ' Uy [km/s]'
-           write(iUnit, '(I5,a)') 20, ' Uz [km/s]'
-           write(iUnit, '(I5,a)') 21, ' JouleHeat [mW/m2]'
-           write(iUnit, '(I5,a)') 22, ' IonNumFlux [/cm2/s]'
-           write(iUnit, '(I5,a)') 23, ' RT 1/B [1/T]'
-           write(iUnit, '(I5,a)') 24, ' RT Rho [kg/m^3]'
-           write(iUnit, '(I5,a)') 25, ' RT P [Pa]'
-           write(iUnit, '(I5,a)') 26, ' conjugate dLat [deg]'
-           write(iUnit, '(I5,a)') 27, ' conjugate dLon [deg]'
+           write(iUnit, '(I5,a)')  10, ' Mono-E-Flux [W/m2]'
+           write(iUnit, '(I5,a)')  11, ' Mono-Ave-E [keV]'
+           write(iUnit, '(I5,a)')  12, ' Diffe-E-Flux [W/m2]'
+           write(iUnit, '(I5,a)')  13, ' Diffe-Ave-E [keV]'
+           write(iUnit, '(I5,a)') 14, ' Jr [mA/m^2]'
+           write(iUnit, '(I5,a)') 15, ' Phi [kV]'
+           write(iUnit, '(I5,a)') 16, ' Ex [mV/m]'
+           write(iUnit, '(I5,a)') 17, ' Ey [mV/m]'
+           write(iUnit, '(I5,a)') 18, ' Ez [mV/m]'
+           write(iUnit, '(I5,a)') 19, ' Jx [microA/m2]'
+           write(iUnit, '(I5,a)') 20, ' Jy [microA/m2]'
+           write(iUnit, '(I5,a)') 21, ' Jz [microA/m2]'
+           write(iUnit, '(I5,a)') 22, ' Ux [km/s]'
+           write(iUnit, '(I5,a)') 23, ' Uy [km/s]'
+           write(iUnit, '(I5,a)') 24, ' Uz [km/s]'
+           write(iUnit, '(I5,a)') 25, ' JouleHeat [mW/m2]'
+           write(iUnit, '(I5,a)') 26, ' IonNumFlux [/cm2/s]'
+           write(iUnit, '(I5,a)') 27, ' RT 1/B [1/T]'
+           write(iUnit, '(I5,a)') 28, ' RT Rho [kg/m^3]'
+           write(iUnit, '(I5,a)') 29, ' RT P [Pa]'
+           write(iUnit, '(I5,a)') 30, ' conjugate dLat [deg]'
+           write(iUnit, '(I5,a)') 31, ' conjugate dLon [deg]'
 
         case(uam_vars)                                  !^CFG  IF TIEGCM BEGIN
            write(iUnit, '(I5,a)')  1, ' Theta [deg]'
@@ -836,6 +843,10 @@ subroutine ionosphere_write_output(iFile, iBlock)
                    IONO_NORTH_SigmaH(i,j),IONO_NORTH_SigmaP(i,j), &
                    IONO_NORTH_EFlux(i,j), &
                    IONO_NORTH_Ave_E(i,j), &
+                   IONO_NORTH_MONO_EFlux(i, j), &
+                   IONO_NORTH_MONO_Ave_E(i, j), &
+                   IONO_NORTH_DIFF_EFlux(i, j), &
+                   IONO_NORTH_DIFF_Ave_E(i, j), &
                    1.0e06*IONO_NORTH_JR(i,j),1.0e-03*IONO_NORTH_PHI(i,j), &
                    1.0e03*IONO_NORTH_Ex(i,j),1.0e03*IONO_NORTH_Ey(i,j), &
                    1.0e03*IONO_NORTH_Ez(i,j), &
@@ -946,6 +957,10 @@ subroutine ionosphere_write_output(iFile, iBlock)
                    IONO_SOUTH_SigmaH(i,j),IONO_SOUTH_SigmaP(i,j), &
                    IONO_SOUTH_EFlux(i,j), &
                    IONO_SOUTH_Ave_E(i,j), &
+                   IONO_SOUTH_MONO_EFlux(i, j), & ! Added outputs
+                   IONO_SOUTH_MONO_Ave_E(i, j), &
+                   IONO_SOUTH_DIFF_EFlux(i, j), &
+                   IONO_SOUTH_DIFF_Ave_E(i, j), &
                    1.0e06*IONO_SOUTH_JR(i,j),1.0e-03*IONO_SOUTH_PHI(i,j), &
                    1.0e03*IONO_SOUTH_Ex(i,j),1.0e03*IONO_SOUTH_Ey(i,j), &
                    1.0e03*IONO_SOUTH_Ez(i,j), &
@@ -1280,8 +1295,8 @@ subroutine iono_getpot(isize,jsize,MHD_lat,MHD_lon,MHD_pot,MHD_Jr)
   end do
 
 end subroutine iono_getpot
-
 !==============================================================================
+
 subroutine calculate_xyz_geo_gse
 
   use ModIonosphere
