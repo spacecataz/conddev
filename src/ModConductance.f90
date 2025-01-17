@@ -154,6 +154,10 @@ contains
           call magnit_gen_fluxes(NameHemiIn, &
                AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
                EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
+          write(*,*)'Eflux'
+          write(*,'(f0.30)')MAXVAL(EfluxDiffe_II),MINVAL(EfluxDiffe_II)
+          write(*,*)'Ave-e'
+          write(*,'(f0.30)')MAXVAL(AvgEDiffe_II),MINVAL(AvgEDiffe_II)
           ! Convert fluxes to conductances:
           call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEMono_II, &
                1000.*EFluxMono_II, SigmaHalMono_II, SigmaPedMono_II)
@@ -183,6 +187,10 @@ contains
        ! Store Average energy and energy flux:
        IONO_NORTH_EFlux = EfluxMono_II
        IONO_NORTH_Ave_E = AvgEMono_II
+       IONO_NORTH_MONO_EFlux = EfluxMono_II ! Added these here and in output file
+       IONO_NORTH_MONO_Ave_E = AvgEMono_II
+       IONO_NORTH_DIFF_EFlux = EfluxDiffe_II
+       IONO_NORTH_DIFF_Ave_E = AvgEDiffe_II
        ! Place values into convenience arrays to calculate derivatives:
        SigmaH = IONO_NORTH_SigmaH
        sigmaP = IONO_NORTH_SigmaP
