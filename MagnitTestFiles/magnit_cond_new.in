@@ -1,0 +1,11 @@
+#BACKGROUNDCOND
+0.25		StarLightPedCond
+0.25		PolarCapPedCond
+
+#SOLAREUV
+T		DoUseSolarEUV
+100.0		F10.7
+
+#AURORA
+T		DoUseAurora
+MAGNIT		NameAurMod
