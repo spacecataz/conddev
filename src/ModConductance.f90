@@ -154,19 +154,21 @@ contains
           call magnit_gen_fluxes(NameHemiIn, &
                AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
                EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
-          write(*,*)'Eflux'
-          write(*,'(f0.30)')MAXVAL(EfluxDiffe_II),MINVAL(EfluxDiffe_II)
-          write(*,*)'Ave-e'
-          write(*,'(f0.30)')MAXVAL(AvgEDiffe_II),MINVAL(AvgEDiffe_II)
           ! Convert fluxes to conductances:
           call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEMono_II, &
                1000.*EFluxMono_II, SigmaHalMono_II, SigmaPedMono_II)
-          call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEDiffe_II, & ! Added calculation for second precip conductance
+          call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEDiffe_II, &
                1000.*EFluxDiffe_II, SigmaHalDiffe_II, SigmaPedDiffe_II)
-          write(*,*)'DiffeSigmaHall '
-          write(*,'(f0.30)')MAXVAL(SigmaHalDiffe_II),MINVAL(SigmaHalDiffe_II)
-          write(*,*)'DiffeSigmaPed'
-          write(*,'(f0.30)')MAXVAL(SigmaPedDiffe_II),MINVAL(SigmaPedDiffe_II)
+          if(DoTest)
+              write(*,*)'Eflux'
+              write(*,'(f0.30)')MAXVAL(EfluxDiffe_II),MINVAL(EfluxDiffe_II)
+              write(*,*)'Ave-e'
+              write(*,'(f0.30)')MAXVAL(AvgEDiffe_II),MINVAL(AvgEDiffe_II)
+              write(*,*)'DiffeSigmaHall '
+              write(*,'(f0.30)')MAXVAL(SigmaHalDiffe_II),MINVAL(SigmaHalDiffe_II)
+              write(*,*)'DiffeSigmaPed'
+              write(*,'(f0.30)')MAXVAL(SigmaPedDiffe_II),MINVAL(SigmaPedDiffe_II)
+          end if
 
        case default
           call CON_stop(NameSub//': Unrecognized auroral model - ' &
@@ -187,10 +189,14 @@ contains
        ! Store Average energy and energy flux:
        IONO_NORTH_EFlux = EfluxMono_II
        IONO_NORTH_Ave_E = AvgEMono_II
-       IONO_NORTH_MONO_EFlux = EfluxMono_II ! Added these here and in output file
+       IONO_NORTH_MONO_EFlux = EfluxMono_II
        IONO_NORTH_MONO_Ave_E = AvgEMono_II
-       IONO_NORTH_DIFF_EFlux = EfluxDiffe_II
-       IONO_NORTH_DIFF_Ave_E = AvgEDiffe_II
+       IONO_NORTH_DIFFI_EFlux = EfluxDiffi_II
+       IONO_NORTH_DIFFI_Ave_E = AvgEDiffi_II
+       IONO_NORTH_DIFFE_EFlux = EfluxDiffe_II
+       IONO_NORTH_DIFFE_Ave_E = AvgEDiffe_II
+       IONO_NORTH_BBND_EFlux = EfluxBbnd_II
+       IONO_NORTH_BBND_Ave_E = AvgEBbnd_II
        ! Place values into convenience arrays to calculate derivatives:
        SigmaH = IONO_NORTH_SigmaH
        sigmaP = IONO_NORTH_SigmaP
@@ -206,10 +212,14 @@ contains
        ! Store Average energy and energy flux:
        IONO_SOUTH_EFlux = EfluxMono_II
        IONO_SOUTH_Ave_E = AvgEMono_II
-       IONO_SOUTH_MONO_EFlux = EfluxMono_II ! Added these here and in output file
+       IONO_SOUTH_MONO_EFlux = EfluxMono_II
        IONO_SOUTH_MONO_Ave_E = AvgEMono_II
-       IONO_SOUTH_DIFF_EFlux = EfluxDiffe_II
-       IONO_SOUTH_DIFF_Ave_E = AvgEDiffe_II
+       IONO_SOUTH_DIFFI_EFlux = EfluxDiffi_II
+       IONO_SOUTH_DIFFI_Ave_E = AvgEDiffi_II
+       IONO_SOUTH_DIFFE_EFlux = EfluxDiffe_II
+       IONO_SOUTH_DIFFE_Ave_E = AvgEDiffe_II
+       IONO_SOUTH_BBND_EFlux = EfluxBbnd_II
+       IONO_SOUTH_BBND_Ave_E = AvgEBbnd_II
        ! Place values into convenience arrays to calculate derivatives:
        SigmaH = IONO_SOUTH_SigmaH
        sigmaP = IONO_SOUTH_SigmaP
@@ -582,6 +592,7 @@ contains
            / (16. + AveEIn_II**2)
        SigmaHOut_II = 0.45 * SigmaPOut_II * AveEIn_II**0.85
     case('gala')
+
     case('kaep')
     end select
 
