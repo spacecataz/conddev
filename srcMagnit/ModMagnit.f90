@@ -56,7 +56,7 @@ module ModMagnit
       AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
       EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
 
-    use ModConst, ONLY: cPi, cKEV
+    use ModConst, ONLY: cPi, cEV
     use ModIonosphere, ONLY: IONO_North_p, IONO_North_rho, &
         IONO_South_p, IONO_South_rho
 
@@ -71,8 +71,8 @@ module ModMagnit
     ! from GM (SI units), Average Energy and Energy Flux (units of KeV and
     ! mW/m2 aka ergs/cm2, respectively) for each precip type.
     real, intent(out), dimension(IONO_nTheta, IONO_nPsi) :: &
-        AvgEDiffe_II=0, AvgEDiffi_II=0, AvgEMono_II=0, AvgEBbnd_II=0, &
-        EfluxDiffe_II=0, EfluxDiffi_II=0, EfluxMono_II=0, EfluxBbnd_II=0
+        AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
+        EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II
 
     ! Set arrays to hold magnetospheric values.
     real, dimension(IONO_nTheta, IONO_nPsi) :: &
