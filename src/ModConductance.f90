@@ -179,8 +179,8 @@ contains
        IONO_NORTH_Sigma0 = SigmaPar
        IONO_NORTH_SigmaH = sqrt(SigmaHalConst**2 + SigmaHalEuv_II**2 + &
             (2.*StarLightCond)**2 + SigmaHalMono_II**2 + SigmaPedDiffe_II**2)
-       IONO_NORTH_SigmaP = sqrt(SigmaPedConst**2 + StarLightCond**2 +&
-            SigmaPedEuv_II**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II)
+       IONO_NORTH_SigmaP = sqrt(SigmaPedConst**2 + SigmaPedEuv_II**2 + &
+               StarLightCond**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II**2)
        ! Add broadband conductance:
        IONO_NORTH_SigmaH = IONO_NORTH_SigmaH + SigmaHalBbnd_II
        IONO_NORTH_SigmaP = IONO_NORTH_SigmaP + SigmaPedBbnd_II
@@ -199,7 +199,7 @@ contains
        IONO_SOUTH_SigmaH = sqrt(SigmaHalConst**2 + SigmaHalEuv_II**2 + &
             (2.*StarLightCond)**2 + SigmaHalMono_II**2 + SigmaPedDiffe_II**2)
        IONO_SOUTH_SigmaP = sqrt(SigmaPedConst**2 + SigmaPedEuv_II**2 + &
-            StarLightCond**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II) ! Should really change this to be the same order as north or vv
+            StarLightCond**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II**2)
        ! Add broadband conductance:
        IONO_SOUTH_SigmaH = IONO_SOUTH_SigmaH + SigmaHalBbnd_II
        IONO_SOUTH_SigmaP = IONO_SOUTH_SigmaP + SigmaPedBbnd_II
