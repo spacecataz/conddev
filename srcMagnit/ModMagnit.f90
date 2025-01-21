@@ -56,7 +56,7 @@ module ModMagnit
       AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
       EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
 
-    use ModConst, ONLY: cPi, cMEV
+    use ModConst, ONLY: cPi, cKEV
     use ModIonosphere, ONLY: IONO_North_p, IONO_North_rho, &
         IONO_South_p, IONO_South_rho
 
@@ -119,21 +119,21 @@ module ModMagnit
     AvgEDiffi_II  = MagP_II / MagNp_II  ! Temp = P/nk in Joules
     NfluxDiffi_II = ConeNfluxDifp * MagNp_II * AvgEDiffi_II**0.5 / &
                     sqrt(2 * cPi * cProtonMass)  ! units of #/m2/s
-    ! units of mW/m2 or ergs/cm2
-    EfluxDiffi_II = 2000 * ConeEfluxDifp * MagNp_II * &
+    ! units of W/m2 or ergs/cm2
+    EfluxDiffi_II = 2 * ConeEfluxDifp * MagNp_II * &
                     AvgEDiffi_II**1.5 / sqrt(2 * cPi * cProtonMass)
     ! Recalc to make consistent with ConeFactors (and get units of keV)
-    AvgEDiffi_II = EfluxDiffi_II / (NfluxDiffi_II * cMEV)
+    AvgEDiffi_II = EfluxDiffi_II / (NfluxDiffi_II * cKEV)
 
     ! Calculate diffuse precipitation: electrons.
     AvgEDiffe_II  = MagPe_II / MagNe_II  ! T = P/nk in Joules
     NfluxDiffe_II = ConeNfluxDife * MagNe_II * AvgEDiffe_II**0.5 / &
                  sqrt(2 * cPi * cElectronMass)  ! units of #/m2/s
-    ! units of mW/m2 or ergs/cm2
-    EfluxDiffe_II = 2000 * ConeEfluxDife * MagNe_II * &
+    ! units of W/m2 or ergs/cm2
+    EfluxDiffe_II = 2 * ConeEfluxDife * MagNe_II * &
                     AvgEDiffe_II**1.5 / sqrt(2 * cPi * cElectronMass)
     ! Recalc to make consistent with ConeFactors (and get units of keV)
-    AvgEDiffe_II = EfluxDiffe_II / (NfluxDiffe_II * cMEV)
+    AvgEDiffe_II = EfluxDiffe_II / (NfluxDiffe_II * cKEV)
 
   end subroutine magnit_gen_fluxes
   !============================================================================
