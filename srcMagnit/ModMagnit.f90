@@ -56,7 +56,7 @@ module ModMagnit
       AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
       EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
 
-    use ModConst, ONLY: cPi, cEV
+    use ModConst, ONLY: cPi, cMEV
     use ModIonosphere, ONLY: IONO_North_p, IONO_North_rho, &
         IONO_South_p, IONO_South_rho
 
@@ -123,7 +123,7 @@ module ModMagnit
     EfluxDiffi_II = 2000 * ConeEfluxDifp * MagNp_II * &
                     AvgEDiffi_II**1.5 / sqrt(2 * cPi * cProtonMass)
     ! Recalc to make consistent with ConeFactors (and get units of keV)
-    AvgEDiffi_II = cEV * EfluxDiffi_II / NfluxDiffi_II
+    AvgEDiffi_II = EfluxDiffi_II / (NfluxDiffi_II * cMEV)
 
     ! Calculate diffuse precipitation: electrons.
     AvgEDiffe_II  = MagPe_II / MagNe_II  ! T = P/nk in Joules
@@ -133,7 +133,7 @@ module ModMagnit
     EfluxDiffe_II = 2000 * ConeEfluxDife * MagNe_II * &
                     AvgEDiffe_II**1.5 / sqrt(2 * cPi * cElectronMass)
     ! Recalc to make consistent with ConeFactors (and get units of keV)
-    AvgEDiffe_II = cEV * EfluxDiffe_II / NfluxDiffe_II
+    AvgEDiffe_II = EfluxDiffe_II / (NfluxDiffe_II * cMEV)
 
   end subroutine magnit_gen_fluxes
   !============================================================================
