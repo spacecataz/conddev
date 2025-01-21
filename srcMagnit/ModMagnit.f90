@@ -62,14 +62,14 @@ module ModMagnit
 
     ! Given magnetospheric density, pressure, and FACs, calculate diffuse and
     ! monoenergetic precipitating fluxes.
-    ! Resulting units are mW/m^2 (aka ergs/cm^2) and KeV for energy flux
+    ! Resulting units are W/m2 and KeV for energy flux
     ! and average energy, respectively.
 
     character(len=*), intent(in) :: NameHemiIn
 
     ! Set arrays to hold precip values. Magnetospheric pressure and density
     ! from GM (SI units), Average Energy and Energy Flux (units of KeV and
-    ! mW/m2 aka ergs/cm2, respectively) for each precip type.
+    ! W/m2, respectively) for each precip type.
     real, intent(out), dimension(IONO_nTheta, IONO_nPsi) :: &
         AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
         EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II
@@ -119,7 +119,7 @@ module ModMagnit
     AvgEDiffi_II  = MagP_II / MagNp_II  ! Temp = P/nk in Joules
     NfluxDiffi_II = ConeNfluxDifp * MagNp_II * AvgEDiffi_II**0.5 / &
                     sqrt(2 * cPi * cProtonMass)  ! units of #/m2/s
-    ! units of W/m2 or ergs/cm2
+    ! units of W/m2
     EfluxDiffi_II = 2 * ConeEfluxDifp * MagNp_II * &
                     AvgEDiffi_II**1.5 / sqrt(2 * cPi * cProtonMass)
     ! Recalc to make consistent with ConeFactors (and get units of keV)
@@ -129,7 +129,7 @@ module ModMagnit
     AvgEDiffe_II  = MagPe_II / MagNe_II  ! T = P/nk in Joules
     NfluxDiffe_II = ConeNfluxDife * MagNe_II * AvgEDiffe_II**0.5 / &
                  sqrt(2 * cPi * cElectronMass)  ! units of #/m2/s
-    ! units of W/m2 or ergs/cm2
+    ! units of W/m2
     EfluxDiffe_II = 2 * ConeEfluxDife * MagNe_II * &
                     AvgEDiffe_II**1.5 / sqrt(2 * cPi * cElectronMass)
     ! Recalc to make consistent with ConeFactors (and get units of keV)
