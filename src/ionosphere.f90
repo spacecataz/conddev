@@ -981,7 +981,7 @@ subroutine ionosphere_write_output(iFile, iBlock)
                    IONO_SOUTH_SigmaH(i,j),IONO_SOUTH_SigmaP(i,j), &
                    IONO_SOUTH_EFlux(i,j), &
                    IONO_SOUTH_Ave_E(i,j), &
-                   IONO_SOUTH_MONO_EFlux(i, j), & ! Added outputs
+                   IONO_SOUTH_MONO_EFlux(i, j), &
                    IONO_SOUTH_MONO_Ave_E(i, j), &
                    IONO_SOUTH_DIFFI_EFlux(i, j), &
                    IONO_SOUTH_DIFFI_Ave_E(i, j), &

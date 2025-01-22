@@ -154,21 +154,26 @@ contains
           call magnit_gen_fluxes(NameHemiIn, &
                AvgEDiffe_II, AvgEDiffi_II, AvgEMono_II, AvgEBbnd_II, &
                EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
+
+          if(DoTest) then
+              write(*,*)'i-Eflux'
+              write(*,'(f0.30)')MAXVAL(EfluxDiffi_II),MINVAL(EfluxDiffi_II)
+              write(*,*)'i-Ave-e'
+              write(*,'(f0.30)')MAXVAL(AvgEDiffi_II),MINVAL(AvgEDiffi_II)
+              write(*,*)'e-Eflux'
+              write(*,'(f0.30)')MAXVAL(EfluxDiffe_II),MINVAL(EfluxDiffe_II)
+              write(*,*)'e-Ave-e'
+              write(*,'(f0.30)')MAXVAL(AvgEDiffe_II),MINVAL(AvgEDiffe_II)
+          end if
+
           ! Convert fluxes to conductances:
           call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEMono_II, &
                1000.*EFluxMono_II, SigmaHalMono_II, SigmaPedMono_II)
           call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEDiffe_II, &
                1000.*EFluxDiffe_II, SigmaHalDiffe_II, SigmaPedDiffe_II)
-          if(DoTest)
-              write(*,*)'Eflux'
-              write(*,'(f0.30)')MAXVAL(EfluxDiffe_II),MINVAL(EfluxDiffe_II)
-              write(*,*)'Ave-e'
-              write(*,'(f0.30)')MAXVAL(AvgEDiffe_II),MINVAL(AvgEDiffe_II)
-              write(*,*)'DiffeSigmaHall '
-              write(*,'(f0.30)')MAXVAL(SigmaHalDiffe_II),MINVAL(SigmaHalDiffe_II)
-              write(*,*)'DiffeSigmaPed'
-              write(*,'(f0.30)')MAXVAL(SigmaPedDiffe_II),MINVAL(SigmaPedDiffe_II)
-          end if
+          call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEDiffi_II, &
+               1000.*EFluxDiffi_II, SigmaHalDiffi_II, SigmaPedDiffi_II, 'gala', theta)
+
 
        case default
           call CON_stop(NameSub//': Unrecognized auroral model - ' &
@@ -180,9 +185,11 @@ contains
     if(NameHemiIn == 'north')then
        IONO_NORTH_Sigma0 = SigmaPar
        IONO_NORTH_SigmaH = sqrt(SigmaHalConst**2 + SigmaHalEuv_II**2 + &
-            (2.*StarLightCond)**2 + SigmaHalMono_II**2 + SigmaPedDiffe_II**2)
+            (2.*StarLightCond)**2 + SigmaHalMono_II**2 + SigmaHalDiffe_II**2 + &
+            SigmaHalDiffi_II**2)
        IONO_NORTH_SigmaP = sqrt(SigmaPedConst**2 + SigmaPedEuv_II**2 + &
-               StarLightCond**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II**2)
+            StarLightCond**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II**2 + &
+            SigmaPedDiffi_II**2)
        ! Add broadband conductance:
        IONO_NORTH_SigmaH = IONO_NORTH_SigmaH + SigmaHalBbnd_II
        IONO_NORTH_SigmaP = IONO_NORTH_SigmaP + SigmaPedBbnd_II
@@ -203,9 +210,11 @@ contains
     else
        IONO_SOUTH_Sigma0 = SigmaPar
        IONO_SOUTH_SigmaH = sqrt(SigmaHalConst**2 + SigmaHalEuv_II**2 + &
-            (2.*StarLightCond)**2 + SigmaHalMono_II**2 + SigmaPedDiffe_II**2)
+            (2.*StarLightCond)**2 + SigmaHalMono_II**2 + SigmaHalDiffe_II**2 + &
+            SigmaHalDiffi_II**2)
        IONO_SOUTH_SigmaP = sqrt(SigmaPedConst**2 + SigmaPedEuv_II**2 + &
-            StarLightCond**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II**2)
+            StarLightCond**2 + SigmaPedMono_II**2 + SigmaPedDiffe_II**2 + &
+            SigmaPedDiffi_II**2)
        ! Add broadband conductance:
        IONO_SOUTH_SigmaH = IONO_SOUTH_SigmaH + SigmaHalBbnd_II
        IONO_SOUTH_SigmaP = IONO_SOUTH_SigmaP + SigmaPedBbnd_II
@@ -558,7 +567,7 @@ contains
   !============================================================================
 
   subroutine flux_to_sigma(nLatIn, nLonIn, AveEIn_II, eFluxIn_II, &
-       SigmaHOut_II, SigmaPOut_II, NameModelIn)
+       SigmaHOut_II, SigmaPOut_II, NameModelIn, LatIn_II)
 
     ! Convert average energy and energy flux to conductance using one of
     ! several empirical relationships. Both average energy and energy flux
@@ -571,20 +580,27 @@ contains
     !    gala :: Galand and Richmond, 2001 (ions)
     !    kaep :: Kaeppler et al., 2015 (electrons)
 
+    use ModPlanetConst, ONLY: rPlanet_I, IonoHeightPlanet_I, Earth_
     ! Arguments:
     integer, intent(in) :: nLatIn, nLonIn
     real, intent(in),  dimension(nLatIn, nLonIn) :: AveEIn_II, eFluxIn_II
     real, intent(out), dimension(nLatIn, nLonIn) :: SigmaHOut_II, SigmaPOut_II
     character(len=4), intent(in), optional :: NameModelIn
+    real, dimension(IONO_nTheta,IONO_nPsi), intent(in), optional :: LatIn_II
 
     ! Local variables:
     character(len=4) :: NameModel='robi'
+    real, dimension(IONO_nTheta,IONO_nPsi):: BDipole_II=0
 
     logical :: DoTest, DoTestMe
     ! Set up defaults: ions and Robinson et al. 1987
     character(len=*), parameter:: NameSub = 'flux_to_sigma'
     !--------------------------------------------------------------------------
-    if (present(NameModelIn))    NameModel = NameModelIn
+    if (present(NameModelIn)) then
+        NameModel = NameModelIn
+    else
+        NameModel = 'robi'
+    end if
 
     select case(NameModel)
     case('robi')
@@ -592,7 +608,11 @@ contains
            / (16. + AveEIn_II**2)
        SigmaHOut_II = 0.45 * SigmaPOut_II * AveEIn_II**0.85
     case('gala')
-
+        BDipole_II = 31. * (rPlanet_I(Earth_)/(rPlanet_I(Earth_) + IonoHeightPlanet_I(Earth_)))**3 &
+                * sqrt(1 + 3*(sin(LatIn_II)**2))
+        SigmaPOut_II = 5.7 * sqrt(eFluxIn_II) * (BDipole_II / 54)**-1.45
+        SigmaHOut_II = 2.6 * AveEIn_II**0.3 * sqrt(eFluxIn_II) &
+            * (BDipole_II / 54)**-1.90
     case('kaep')
     end select
 
