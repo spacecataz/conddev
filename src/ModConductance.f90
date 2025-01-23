@@ -156,13 +156,13 @@ contains
                EfluxDiffe_II, EfluxDiffi_II, EfluxMono_II, EfluxBbnd_II)
 
           if(DoTest) then
-              write(*,*)'i-Eflux'
+              write(*,*)'Ion Energy Flux'
               write(*,'(f0.30)')MAXVAL(EfluxDiffi_II),MINVAL(EfluxDiffi_II)
-              write(*,*)'i-Ave-e'
+              write(*,*)'Ion Average Energy'
               write(*,'(f0.30)')MAXVAL(AvgEDiffi_II),MINVAL(AvgEDiffi_II)
-              write(*,*)'e-Eflux'
+              write(*,*)'Electron Energy Flux'
               write(*,'(f0.30)')MAXVAL(EfluxDiffe_II),MINVAL(EfluxDiffe_II)
-              write(*,*)'e-Ave-e'
+              write(*,*)'Electron Average Energy'
               write(*,'(f0.30)')MAXVAL(AvgEDiffe_II),MINVAL(AvgEDiffe_II)
           end if
 
@@ -174,6 +174,16 @@ contains
           call flux_to_sigma(IONO_nTheta, IONO_nPsi, AvgEDiffi_II, &
                1000.*EFluxDiffi_II, SigmaHalDiffi_II, SigmaPedDiffi_II, 'gala', theta)
 
+          if(DoTest) then
+              write(*,*)'Ion Hall Conductance'
+              write(*,'(f0.30)')MAXVAL(SigmaHalDiffi_II),MINVAL(SigmaHalDiffi_II)
+              write(*,*)'Ion Pedersen Conductance'
+              write(*,'(f0.30)')MAXVAL(SigmaPedDiffi_II),MINVAL(SigmaPedDiffi_II)
+              write(*,*)'Electron Hall Conductance'
+              write(*,'(f0.30)')MAXVAL(SigmaHalDiffe_II),MINVAL(SigmaHalDiffe_II)
+              write(*,*)'Electron Pedersen Conductance'
+              write(*,'(f0.30)')MAXVAL(SigmaPedDiffe_II),MINVAL(SigmaPedDiffe_II)
+          end if
 
        case default
           call CON_stop(NameSub//': Unrecognized auroral model - ' &
@@ -557,7 +567,7 @@ contains
        write(*,*)'   StarLightCond, PolarCapPedCond = ', &
             StarLightCond, PolarCapPedCond
        write(*,*)'   F10.7 Flux = ', f107_flux
-       write(*,*)'   DoUseEuvCond = ', DoUseAurora
+       write(*,*)'   DoUseEuvCond = ', DoUseEuvCond
        write(*,*)'   DoUseAurora = ', DoUseAurora
        write(*,*)'   NameAuroraModel = ', NameAuroraMod
        write(*,*)'   iModelIn = ', iModelIn
@@ -580,7 +590,7 @@ contains
     !    gala :: Galand and Richmond, 2001 (ions)
     !    kaep :: Kaeppler et al., 2015 (electrons)
 
-    use ModPlanetConst, ONLY: rPlanet_I, IonoHeightPlanet_I, Earth_
+    use ModPlanetConst, ONLY: rPlanet_I, IonoHeightPlanet_I, DipoleStrengthPlanet_I, Earth_
     ! Arguments:
     integer, intent(in) :: nLatIn, nLonIn
     real, intent(in),  dimension(nLatIn, nLonIn) :: AveEIn_II, eFluxIn_II
@@ -608,11 +618,11 @@ contains
            / (16. + AveEIn_II**2)
        SigmaHOut_II = 0.45 * SigmaPOut_II * AveEIn_II**0.85
     case('gala')
-        BDipole_II = 31. * (rPlanet_I(Earth_)/(rPlanet_I(Earth_) + IonoHeightPlanet_I(Earth_)))**3 &
+        BDipole_II = -DipoleStrengthPlanet_I(Earth_) * (rPlanet_I(Earth_)/(rPlanet_I(Earth_) + IonoHeightPlanet_I(Earth_)))**3 &
                 * sqrt(1 + 3*(sin(LatIn_II)**2))
-        SigmaPOut_II = 5.7 * sqrt(eFluxIn_II) * (BDipole_II / 54)**-1.45
+        SigmaPOut_II = 5.7 * sqrt(eFluxIn_II) * (BDipole_II / 54e-6)**-1.45
         SigmaHOut_II = 2.6 * AveEIn_II**0.3 * sqrt(eFluxIn_II) &
-            * (BDipole_II / 54)**-1.90
+            * (BDipole_II / 54e-6)**-1.90
     case('kaep')
     end select
 
