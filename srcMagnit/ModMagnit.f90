@@ -14,8 +14,10 @@ module ModMagnit
   ! Unit conversion factors and other constants:
   real, parameter :: cPtoKProt = cKToKEV/cBoltzmann
   real, parameter :: cPtoKElec = cElectronMass/cBoltzmann * cKToKEV
+  real, parameter :: cFACFloor = 1.0E-12 ! A/m2
 
-  ! Configuration parameters:
+
+          ! Configuration parameters:
   logical :: DoUseGmPe=.false.  ! Use electron pressure?
 
   ! Diffuse auroral parameters
@@ -61,7 +63,6 @@ module ModMagnit
     use ModIonosphere, ONLY: IONO_North_p, IONO_North_rho, &
         IONO_South_p, IONO_South_rho, IONO_NORTH_JR, IONO_SOUTH_JR, &
         IONO_NORTH_invB, IONO_SOUTH_invB, IONO_NORTH_Joule, IONO_SOUTH_Joule
-    use ModConductance, ONLY: cFACFloor
     use ModPlanetConst, ONLY: rPlanet_I, IonoHeightPlanet_I, Earth_
 
     ! Given magnetospheric density, pressure, and FACs, calculate diffuse and
@@ -161,8 +162,7 @@ module ModMagnit
       NfluxMono_II = FAC_II / cElectronCharge
       ! Calculate Parallel Potential Drop
       ! Calculate large coefficient in numerator "Numerator Coefficient"
-      NumCoefficient_II = NfluxMono_II * sqrt(2 * cPi * cElectronMass) / &
-              (ConeNfluxMono * MagNe_II * sqrt(AvgEDiffe_II * cKEV))
+      NumCoefficient_II = NfluxMono_II / (ConeNfluxMono * NfluxDiffe_II)
 
       ! Calculate ratio of ionospheric magnetic field to plasma sheet magnetic field
       BRatio_II = (rPlanet_I(Earth_) / (sin(LatIn_II)**2 * &
@@ -170,9 +170,9 @@ module ModMagnit
               sqrt(1 + 3*sin(LatIn_II)**2)
 
       ! Potential calculations only valid where NumCoefficient <= 1
-      where(NumCoefficient_II <= 1)
+      where(1 <= NumCoefficient_II .and. NumCoefficient_II < BRatio_II)
         ! Put it all together into potential
-        Potential_II = AvgEDiffe_II * cKEV / cElectronCharge * (BRatio_II - 1) * &
+        Potential_II = AvgEDiffe_II * cKEV / cElectronCharge * (1 - BRatio_II) * &
                 LOG((BRatio_II - NumCoefficient_II) / (BRatio_II - 1))
       end where
 
@@ -183,7 +183,7 @@ module ModMagnit
               (1/(BRatio_II - 1)))
 
       ! Calculate product term
-      PotentialTerm_II = ((1 - VExponent_II) / (2 + 2 * ((1 - 1/BRatio_II) * &
+      PotentialTerm_II = ((1 - VExponent_II) / (2 + ((2 - 2/BRatio_II) * &
               VExponent_II)) * cElectronCharge * Potential_II) + AvgEDiffe_II * cKEV
 
       ! Plug into equation for EFlux
@@ -198,15 +198,17 @@ module ModMagnit
     write(*,'(f0.30)')MAXVAL(EfluxMono_II),MINVAL(EfluxMono_II)
     write(*,*)'Discrete Average Energy'
     write(*,'(f0.30)')MAXVAL(AvgEMono_II),MINVAL(AvgEMono_II)
-
-    ! Calculate broadband electron precipitation
-    ! Note: Joule Heating is in SI Units = W/m2
-    Poynting_II = IONO_NORTH_Joule * 0.43395593979143521 ! in W/m2 ! Need to figure out where this value came from
-
-    ! Using empirical relationships from Zhang et al. 2015
-    EfluxBbnd_II = 2e-3 * (ConeEfluxBbnd * Poynting_II) ** 0.5
-    NfluxBbnd_II = 3e13 * (ConeNfluxBbnd * Poynting_II) ** 0.47
-    AvgEBbnd_II = EfluxBbnd_II / (NfluxBbnd_II * cKEV)
+!
+!    ! Calculate broadband electron precipitation
+!    ! Note: Joule Heating is in SI Units = W/m2
+!    Poynting_II = IONO_NORTH_Joule * 0.43395593979143521 ! in W/m2 ! Need to figure out where this value came from
+!
+!    ! Using empirical relationships from Zhang et al. 2015
+!    EfluxBbnd_II = 2e-3 * (ConeEfluxBbnd * Poynting_II) ** 0.5
+!    NfluxBbnd_II = 3e13 * (ConeNfluxBbnd * Poynting_II) ** 0.47
+!    AvgEBbnd_II = EfluxBbnd_II / (NfluxBbnd_II * cKEV)
+!    write(*,*)'Poynting Flux'
+!    write(*,'(f0.30)')MAXVAL(Poynting_II),MINVAL(Poynting_II)
 
 
 
