@@ -4,7 +4,7 @@ IE  0  1  1   ! IE runs on up to 2 PE-s
 GM  2 -1  1   ! GM runs on rest of PE-s
 
 #TEST
-imodel_legacy
+magnit_Pe
 
 VERBOSE
 1
@@ -180,8 +180,17 @@ T			DoRayTraceIE
 
 #BEGIN_COMP IE ---------------------------------------------------------------
 
-#INCLUDE
-magnit_cond_new.in
+#BACKGROUNDCOND
+0.25		StarLightPedCond
+0.25		PolarCapPedCond
+
+#SOLAREUV
+T		DoUseSolarEUV
+100.0		F10.7
+
+#AURORA
+T		DoUseAurora
+MAGNIT		NameAurMod
 
 #BOUNDARY
 10.0			LatBoundary
