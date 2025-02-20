@@ -1,0 +1,25 @@
+How to run MAGNIT using electron pressure:
+
+1: Use most recent version from git repo (this is not updated to have electron pressure coupling yet)
+
+2: Run Config.pl -o=GM:e=MhdPe or Config.pl -o=GM:e=MhdHypPe
+   So far, code has only been tested with MhdHypPe... Whether or not it makes a large difference (or any) is not yet known
+
+3: Use PARAM in this folder. Extra lines for electron fluid values are added in the GM and IM sections: #MINIMUMPRESSURE and #COMPOSITION respectively.
+   Currently, the electron minimum pressure is set to be the same as for ions, this may not be the best value.
+
+   NOTE: If writing a separate param, ensure #TRACEIE is turned on, as it is required for MAGNIT. This should be turned on by default for MAGNIT
+   	 in the future.
+   
+4: Currently, there is a bug that causes a crash almost immediately after the beginning of the real time part of a run. For an unknown reason,
+   this bug does not happen if the SWMF is first compiled with debug flags on, then debug flags are turned off and the SWMF is recompiled
+   ***WITHOUT RUNNING MAKE CLEAN***. Hopefully this issue will be resolved soon, but as of now it is currently necessary to successfully run
+   MAGNIT with electron pressure coupling. 
+
+Notes:
+1. Currently, MAGNIT uses a minimum electron pressure equivalent to the minimum ion pressure (1E-13 Pa), this may not be the best value.
+
+2. Currently, electron density is *not* being flipped across the noon-midnight plane. This is consistent with the expected quasi-neutrality of the
+   magnetospheric plasma, but not with the opposite directionality of motion from gradient and curvature drift. Which method is correct is not
+   currently known.
+
